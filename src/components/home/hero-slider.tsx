@@ -79,10 +79,19 @@ const SLIDES: Slide[] = [
   },
 ];
 
-const VERTICAL_BG: Record<Slide["vertical"], string> = {
-  pharmacy: "bg-gradient-to-br from-rk-navy to-rk-blue",
-  veterinary: "bg-gradient-to-br from-rk-lavender-deep to-rk-lavender",
-  supermarket: "bg-gradient-to-br from-rk-amber-deep to-rk-amber",
+// Gradient is now a translucent scrim over a real demo photo (see
+// public/demo-assets/README.md) rather than the sole background — kept so
+// text stays readable against any photo and the vertical's brand colour
+// still reads at a glance.
+const VERTICAL_SCRIM: Record<Slide["vertical"], string> = {
+  pharmacy: "bg-gradient-to-br from-rk-navy/90 to-rk-blue/80",
+  veterinary: "bg-gradient-to-br from-rk-lavender-deep/90 to-rk-lavender/80",
+  supermarket: "bg-gradient-to-br from-rk-amber-deep/90 to-rk-amber/80",
+};
+const VERTICAL_IMAGE: Record<Slide["vertical"], string> = {
+  pharmacy: "/demo-assets/banners/pharmacy.jpg",
+  veterinary: "/demo-assets/banners/veterinary.jpg",
+  supermarket: "/demo-assets/banners/supermarket.jpg",
 };
 
 function subscribeReducedMotion(onChange: () => void) {
@@ -157,19 +166,23 @@ export function HeroSlider() {
           {SLIDES.map((slide, i) => (
             <div key={i} className="relative min-w-0 flex-[0_0_100%]">
               <div
-                className={`flex min-h-80 flex-col justify-center gap-3 px-8 py-16 text-white sm:min-h-[26rem] sm:px-16 ${VERTICAL_BG[slide.vertical]}`}
+                className="flex min-h-80 flex-col justify-center gap-3 bg-cover bg-center px-8 py-16 text-white sm:min-h-[26rem] sm:px-16"
+                style={{ backgroundImage: `url(${VERTICAL_IMAGE[slide.vertical]})` }}
               >
-                <span className="text-sm font-bold text-rk-amber">{slide.kicker}</span>
-                <h2 className="max-w-xl font-display text-3xl font-extrabold sm:text-4xl">
-                  {slide.headline}
-                </h2>
-                <p className="max-w-md text-white/85">{slide.body}</p>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {slide.ctas.map((cta) => (
-                    <Button key={cta.label} asChild variant={cta.variant}>
-                      <Link href={cta.href}>{cta.label}</Link>
-                    </Button>
-                  ))}
+                <div className={`absolute inset-0 ${VERTICAL_SCRIM[slide.vertical]}`} aria-hidden="true" />
+                <div className="relative z-10 flex flex-col gap-3">
+                  <span className="text-sm font-bold text-rk-amber">{slide.kicker}</span>
+                  <h2 className="max-w-xl font-display text-3xl font-extrabold sm:text-4xl">
+                    {slide.headline}
+                  </h2>
+                  <p className="max-w-md text-white/85">{slide.body}</p>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    {slide.ctas.map((cta) => (
+                      <Button key={cta.label} asChild variant={cta.variant}>
+                        <Link href={cta.href}>{cta.label}</Link>
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

@@ -10,14 +10,8 @@ export function Footer({ branches }: { branches: FooterBranch[] }) {
     <footer className="bg-[#14165A] px-4 pt-10 pb-5 text-[#D5D6F2] sm:px-8">
       <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-2 lg:grid-cols-5">
         <div className="lg:col-span-1">
-          <div className="mb-2 flex items-center gap-2 font-display text-lg font-extrabold text-white">
-            <span className="grid size-7 flex-none place-items-center rounded-full bg-rk-blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-white">
-                <path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />
-              </svg>
-            </span>
-            Robakeye
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/robakeye-horizontal-compact-reverse.svg" alt="Robakeye" className="mb-2 h-7 w-auto" />
           <p className="max-w-72 text-sm text-[#9FA1D4]">
             Pharmacy, veterinary care and everyday groceries across three Ibadan locations.
           </p>

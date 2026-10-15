@@ -370,6 +370,7 @@ async function main() {
         description: p.description,
         priceKobo: p.priceKobo,
         class: p.class,
+        images: [`/demo-assets/products/${p.slug}.jpg`],
       },
       create: {
         sku: p.sku,
@@ -380,7 +381,9 @@ async function main() {
         class: p.class,
         categoryId: category.id,
         priceKobo: p.priceKobo,
-        images: [],
+        // Demo/sample imagery only — see public/demo-assets/README.md.
+        // Swap for real product photography before this is a real catalogue.
+        images: [`/demo-assets/products/${p.slug}.jpg`],
       },
     });
 

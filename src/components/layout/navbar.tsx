@@ -39,13 +39,9 @@ export function Navbar({
 
 function Logo() {
   return (
-    <Link href="/" className="flex flex-none items-center gap-2 font-display text-lg font-extrabold text-rk-navy">
-      <span className="grid size-8 flex-none place-items-center rounded-full bg-rk-blue">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-white">
-          <path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />
-        </svg>
-      </span>
-      Robakeye
+    <Link href="/" className="flex flex-none items-center">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/robakeye-horizontal-compact.svg" alt="Robakeye" className="h-8 w-auto" />
     </Link>
   );
 }

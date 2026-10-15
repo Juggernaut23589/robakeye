@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Robakeye icon">
+<title>Robakeye icon</title>
+<circle cx="100" cy="100" r="100" fill="#2F38EB"/>
+<g transform="translate(100 100) scale(1.14) translate(-100 -97)">
+<path d="M100 36 L150 76 L150 154 L50 154 L50 76 Z" fill="#F19428" stroke="#F19428" stroke-width="8" stroke-linejoin="round"/>
+<line x1="106" y1="110" x2="134" y2="80" stroke="#1B1E6D" stroke-width="13" stroke-linecap="round"/>
+<rect x="60" y="102" width="80" height="11" rx="5.5" fill="#1B1E6D"/>
+<path d="M64 112 H136 A36 28 0 0 1 64 112 Z" fill="#1B1E6D"/>
+<rect x="85" y="136" width="30" height="12" rx="4" fill="#1B1E6D"/>
+</g>
+</svg>

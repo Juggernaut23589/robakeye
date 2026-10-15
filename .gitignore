@@ -34,8 +34,15 @@ yarn-error.log*
 .env*
 !.env.example
 
+# secrets dropped in the project dir for one-off local use — never commit
+*-token.md
+*-token.txt
+
 # vercel
 .vercel
+
+# supabase CLI local link state (machine-local, not project config)
+/supabase/.temp
 
 # typescript
 *.tsbuildinfo

@@ -58,7 +58,11 @@ export function AdminSidebar({ permissions, staffName }: { permissions: string[]
         }`}
       >
         <div className="flex items-center justify-between p-5">
-          <span className="font-display text-lg font-bold">Robakeye Admin</span>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/robakeye-icon.svg" alt="" className="size-7" />
+            <span className="font-display text-lg font-bold">Robakeye Admin</span>
+          </div>
           <button onClick={() => setOpen(false)} className="md:hidden" aria-label="Close menu">
             <X size={20} />
           </button>
