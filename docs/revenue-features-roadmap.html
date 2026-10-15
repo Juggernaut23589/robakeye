@@ -1,0 +1,484 @@
+<title>Robakeye Revenue Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;600;700;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap">
+<style>
+/* Layout: same spec shell as the rest of the Robakeye series. The one chart —
+   an Impact×Effort quadrant scatter — follows the dataviz skill's procedure:
+   form picked first (scatter, since each point is a named feature, not an
+   aggregate), categorical colour by phase validated with the palette script
+   (light: badge blue / amber / lavender-deep; dark: lightened variants — both
+   sets pass chroma, CVD-separation and normal-vision-floor checks), direct
+   labels since n=13 is small enough that labelling IS the content, a legend
+   for the 3 phases, a ≥24px hit target + hover/focus tooltip per point, and a
+   full data table underneath so nothing is hover-gated. */
+:root {
+  --rb-navy: #1B1E6D; --rb-blue: #2F38EB; --rb-amber: #F19428; --rb-amber-deep: #A65800;
+  --rb-lavender-mist: #F4F1FD; --rb-lavender: #C8C1F1; --rb-lavender-deep: #5A4CB0;
+  --rb-success: #1E7F46; --rb-alert: #C62828;
+  --rb-n50: #FAFAFA; --rb-n200: #E4E4E9; --rb-n400: #A0A0AA; --rb-n600: #5C5C66; --rb-n900: #1A1A1A;
+  --rb-navy-50: #EEEFF8; --rb-amber-50: #FEF3E6; --rb-success-50: #E8F4EC; --rb-alert-50: #FCEBEB;
+
+  --bg: #F6F4FC; --surface: #FFFFFF; --ink: #1B1C3A; --muted: #5D5C78; --line: #E2DFF0;
+  --accent: #2F38EB; --tab: #1B1E6D; --well: #EFEDF8;
+  --ok: #1E7F46; --warn: #A65800; --bad: #C62828;
+
+  /* validated categorical trio — phase identity. Light: all 6 checks PASS. */
+  --ph-mvp: #2F38EB; --ph-p2: #F19428; --ph-p3: #5A4CB0;
+  --chart-surface: #FDFDFF; --chart-grid: #E2DFF0; --chart-text: #5D5C78; --chart-text-strong: #1B1C3A;
+
+  --f-display: "Sora", "Work Sans", system-ui, sans-serif;
+  --f-body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --col: 46rem; --wide: 78rem; --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+    --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+    --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+    /* validated dark-mode categorical trio — ALL CHECKS PASS vs surface #1a1a19 */
+    --ph-mvp: #7883F0; --ph-p2: #C97F2E; --ph-p3: #9586D2;
+    --chart-surface: #171936; --chart-grid: #2B2D58; --chart-text: #A9A8C8; --chart-text-strong: #ECEBF8;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+  --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+  --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+  --ph-mvp: #7883F0; --ph-p2: #C97F2E; --ph-p3: #9586D2;
+  --chart-surface: #171936; --chart-grid: #2B2D58; --chart-text: #A9A8C8; --chart-text-strong: #ECEBF8;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--f-body); }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--well); padding: 0.1em 0.35em; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.shell { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 3rem; max-width: 98rem; margin: 0 auto; padding-inline: 2rem; }
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; height: 100vh; padding-block: 2rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; }
+.rail .brand { display: flex; align-items: center; gap: 0.6rem; font: 700 1.05rem var(--f-display); color: var(--ink); }
+.rail .brand .dot { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--rb-blue); flex: none; display: grid; place-items: center; }
+.rail .brand .dot svg { width: 0.9rem; height: 0.9rem; color: #fff; }
+.rail .doctype { font: 600 0.7rem var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: -0.6rem; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.08rem; }
+.rail a { display: grid; grid-template-columns: 1.7rem 1fr; padding: 0.28rem 0.5rem; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.84rem; }
+.rail a:hover { background: var(--well); color: var(--ink); }
+.rail a span:first-child { font-family: var(--f-mono); font-size: 0.72rem; padding-top: 0.14rem; }
+.rail .meta { margin-top: auto; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+main { min-width: 0; padding-block: 2rem 6rem; }
+
+.cover { background: var(--rb-navy); color: #fff; border-radius: 18px; padding: clamp(1.5rem, 4vw, 3.5rem); position: relative; overflow: hidden; }
+.cover::after { content: ""; position: absolute; right: -7rem; bottom: -10rem; width: 26rem; height: 26rem; background: var(--rb-blue); clip-path: polygon(50% 0, 100% 32%, 100% 100%, 0 100%, 0 32%); opacity: 0.4; }
+.cover > * { position: relative; z-index: 1; }
+.eyebrow { font: 600 0.75rem/1.2 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cover .eyebrow { color: var(--rb-amber); }
+.cover h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 800; margin-block: 0.7rem 1rem; }
+.cover p { color: #D5D6F2; max-width: 42rem; font-size: 1.05rem; }
+.cover dl { display: flex; flex-wrap: wrap; gap: 0.5rem 2.25rem; margin: 1.75rem 0 0; font-size: 0.85rem; }
+.cover dt { color: #A9ABE0; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.cover dd { margin: 0; font-weight: 500; }
+
+section { padding-block: 5rem 0; scroll-margin-top: 1rem; }
+.sec-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; max-width: var(--col); margin-bottom: 2rem; }
+.tab { width: 3.4rem; height: 3.6rem; background: var(--tab); color: #fff; clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%); display: grid; place-items: end center; padding-bottom: 0.55rem; font: 700 1rem/1 var(--f-mono); }
+.sec-head h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); letter-spacing: -0.015em; line-height: 1.1; }
+.sec-head p { color: var(--muted); margin-top: 0.6rem; font-size: 1.02rem; }
+.prose { max-width: var(--col); display: grid; gap: 1rem; }
+.prose p, .prose li { max-width: 68ch; }
+h3.sub { font-size: 1.1rem; margin-block: 2.75rem 1rem; display: flex; gap: 0.6rem; align-items: baseline; }
+h3.sub small { font: 500 0.78rem var(--f-mono); color: var(--muted); }
+.note { max-width: var(--col); background: var(--well); border-radius: var(--r); padding: 1rem 1.25rem; font-size: 0.92rem; }
+.note strong { font-family: var(--f-display); }
+.wide { max-width: var(--wide); }
+.grid { display: grid; gap: 1rem; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; min-width: 0; }
+.card h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+.card ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.92rem; }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+th, td { text-align: left; padding: 0.58rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.68rem/1.3 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--well); }
+tr:last-child td { border-bottom: 0; }
+.tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; font: 600 0.7rem var(--f-body); white-space: nowrap; }
+.open-items { max-width: var(--wide); counter-reset: oi; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.open-items li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0.85rem 1rem 0.85rem 3rem; position: relative; font-size: 0.92rem; }
+.open-items li::before { counter-increment: oi; content: counter(oi); position: absolute; left: 1rem; top: 0.85rem; font: 700 0.85rem var(--f-mono); color: var(--accent); }
+.open-items li b { font-family: var(--f-display); display: block; margin-bottom: 0.15rem; }
+
+/* ===================== chart ===================== */
+.chart-wrap { max-width: var(--wide); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem 1.5rem 1.5rem; position: relative; }
+.chart-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.chart-top h4 { font-size: 1rem; }
+.legend { display: flex; gap: 1.1rem; flex-wrap: wrap; font-size: 0.8rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+.legend i { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; }
+.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart-svg text { fill: var(--chart-text); font-family: var(--f-body); }
+.chart-svg .axis-label { font: 600 11px var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; fill: var(--chart-text); }
+.chart-svg .quad-label { font: 600 10.5px var(--f-display); letter-spacing: 0.03em; text-transform: uppercase; fill: var(--chart-text); opacity: 0.55; }
+.chart-svg .tick { font: 500 10px var(--f-mono); fill: var(--chart-text); opacity: 0.8; }
+.chart-svg .pt-label { font: 600 10.5px var(--f-body); fill: var(--chart-text-strong); pointer-events: none; }
+.chart-svg .grid-line { stroke: var(--chart-grid); stroke-width: 1; }
+.chart-svg .quad-line { stroke: var(--chart-grid); stroke-width: 1.5; }
+.chart-svg .dot { stroke: var(--chart-surface); stroke-width: 2; cursor: pointer; transition: r 120ms ease, transform 120ms ease; transform-box: fill-box; transform-origin: center; }
+.chart-svg .hit { fill: transparent; cursor: pointer; }
+.chart-svg .hit:hover + .dot, .chart-svg .hit:focus + .dot { r: 8; }
+.chart-svg .hit:focus { outline: none; }
+.chart-svg .hit:focus + .dot { stroke: var(--accent); stroke-width: 2.5; }
+.ctooltip { position: absolute; pointer-events: none; background: var(--rb-navy); color: #fff; border-radius: 8px; padding: 0.55rem 0.75rem; font-size: 0.76rem; line-height: 1.45; max-width: 15rem; box-shadow: 0 14px 30px -12px rgba(0,0,0,0.4); opacity: 0; transform: translate(-50%, -100%); transition: opacity 120ms ease; z-index: 5; }
+.ctooltip.show { opacity: 1; }
+.ctooltip b { display: block; font: 700 0.82rem var(--f-display); margin-bottom: 0.15rem; }
+.ctooltip .meta { color: #C7C9F0; font-size: 0.7rem; margin-bottom: 0.25rem; }
+.ctooltip .phase-pill { display: inline-block; padding: 0.05rem 0.4rem; border-radius: 999px; font: 600 0.62rem var(--f-mono); margin-left: 0.3rem; }
+
+@media (max-width: 1100px) {
+  .g3 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 960px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-inline: 1rem; gap: 0; }
+  .rail { display: none; }
+  .g2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .sec-head { grid-template-columns: minmax(0, 1fr); }
+  .g3 { grid-template-columns: minmax(0,1fr); }
+  .chart-wrap { padding: 1rem 0.75rem 1.25rem; }
+}
+</style>
+
+<div class="shell">
+<nav class="rail" aria-label="Document sections">
+  <div class="brand"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</div>
+  <div class="doctype">Revenue feature roadmap</div>
+  <ol>
+    <li><a href="#strategy"><span>00</span><span>Strategic framing</span></a></li>
+    <li><a href="#matrix"><span>01</span><span>Impact × effort matrix</span></a></li>
+    <li><a href="#mvp"><span>02</span><span>MVP features</span></a></li>
+    <li><a href="#p2"><span>03</span><span>Phase 2 features</span></a></li>
+    <li><a href="#p3"><span>04</span><span>Phase 3 features</span></a></li>
+    <li><a href="#sequencing"><span>05</span><span>Sequencing &amp; dependencies</span></a></li>
+    <li><a href="#open"><span>06</span><span>Assumptions &amp; open items</span></a></li>
+  </ol>
+  <p class="meta">Version 1.0 · October 2026<br>Companion to the rest of the <a href="technical-architecture.html">Robakeye spec series</a></p>
+</nav>
+
+<main>
+<header class="cover">
+  <p class="eyebrow">Revenue feature roadmap · v1.0</p>
+  <h1>Beyond core commerce</h1>
+  <p>Twelve features that drive revenue once the core platform (catalogue, cart, checkout, the three verticals) is live — prioritised by impact against effort, and sequenced into MVP, Phase 2 and Phase 3. Several lean on infrastructure the earlier specs already built, which is where the cheapest wins are.</p>
+  <dl>
+    <div><dt>MVP</dt><dd>5 features, ship at or near launch</dd></div>
+    <div><dt>Phase 2</dt><dd>6 features, need volume or data first</dd></div>
+    <div><dt>Phase 3</dt><dd>2 features, new business models</dd></div>
+  </dl>
+</header>
+
+<!-- ============================================================ 00 -->
+<section id="strategy">
+  <div class="sec-head"><div class="tab">00</div><div><h2>Strategic framing</h2><p>Three ideas carry the whole prioritisation, not just gut feel per feature.</p></div></div>
+
+  <div class="grid g3 wide">
+    <div class="card"><h4>Reuse beats new infrastructure</h4><p style="font-size:0.92rem">The technical architecture doc already has <code>Reviews</code>, <code>Promotions</code>, the order calculation engine, and SMS/email providers. A feature that's mostly new UI on existing data (reviews, flash sales, the delivery progress bar) is cheap. A feature needing a new ledger, a new billing relationship, or a new approval workflow (subscriptions, gift cards, B2B) genuinely isn't.</p></div>
+    <div class="card"><h4>Some features need volume first</h4><p style="font-size:0.92rem">A loyalty tier system with no repeat customers yet, or a segmentation tool with no customer history, optimises nothing. These wait for Phase 2 not because they're hard, but because launch-week Robakeye hasn't generated the data they act on.</p></div>
+    <div class="card"><h4>Compliance already drew some lines</h4><p style="font-size:0.92rem">Prescription Refill Reminders re-triggers the same pharmacist verification flow from the compliance doc — it's a new entry point into an existing, already-regulated process, not a new one. That containment is what keeps its effort moderate instead of high.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 01 -->
+<section id="matrix">
+  <div class="sec-head"><div class="tab">01</div><div><h2>Impact × effort matrix</h2><p>Every feature the brief asks for, plotted once. Hover or focus a point for its one-line case; the table below carries the same data without hovering anything.</p></div></div>
+
+  <div class="chart-wrap">
+    <div class="chart-top">
+      <h4>Revenue features — impact vs. effort</h4>
+      <div class="legend">
+        <span><i style="background:var(--ph-mvp)"></i>MVP</span>
+        <span><i style="background:var(--ph-p2)"></i>Phase 2</span>
+        <span><i style="background:var(--ph-p3)"></i>Phase 3</span>
+      </div>
+    </div>
+    <svg class="chart-svg" id="qchart" viewBox="0 0 720 720" role="img" aria-label="Scatter chart plotting 13 revenue features by impact (vertical axis, 1 to 10) and effort (horizontal axis, 1 to 10), coloured by roadmap phase">
+      <!-- quadrant fields -->
+      <text class="quad-label" x="82" y="58">Quick wins</text>
+      <text class="quad-label" x="614" y="58" text-anchor="end">Major projects</text>
+      <text class="quad-label" x="82" y="646">Fill-ins</text>
+      <text class="quad-label" x="614" y="646" text-anchor="end">Reconsider</text>
+      <!-- grid -->
+      <g id="gridlines"></g>
+      <!-- quadrant divider -->
+      <line class="quad-line" x1="360" y1="40" x2="360" y2="650"/>
+      <line class="quad-line" x1="70" y1="345" x2="650" y2="345"/>
+      <!-- axes ticks -->
+      <g id="xticks"></g>
+      <g id="yticks"></g>
+      <text class="axis-label" x="360" y="700" text-anchor="middle">Effort — low to high</text>
+      <text class="axis-label" x="-345" y="22" text-anchor="middle" transform="rotate(-90)">Impact — low to high</text>
+      <!-- points -->
+      <g id="points"></g>
+    </svg>
+    <div class="ctooltip" id="ctip" role="status" aria-live="polite"></div>
+  </div>
+
+  <h3 class="sub">Same data, as a table</h3>
+  <div class="tbl wide">
+    <table id="ftable">
+      <thead><tr><th>Feature</th><th>Phase</th><th>Impact</th><th>Effort</th><th>One-line case</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 02 -->
+<section id="mvp">
+  <div class="sec-head"><div class="tab">02</div><div><h2>MVP features</h2><p>High impact, low effort — mostly new UI layered on infrastructure the other specs already built. Ship at or shortly after launch.</p></div></div>
+
+  <div class="grid g2 wide">
+    <div class="card"><h4>Abandoned cart recovery <span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy);margin-left:0.4rem">I 8 · E 3</span></h4><ul>
+      <li>1h / 24h / 72h SMS+email sequence, the last one carrying a small incentive code.</li>
+      <li>Needs only a scheduled job reading cart-created-but-not-ordered state and the existing Termii/SendGrid integrations (technical architecture doc §05) — no new provider.</li>
+    </ul></div>
+    <div class="card"><h4>Flash sales &amp; time-limited deals <span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy);margin-left:0.4rem">I 6 · E 3</span></h4><ul>
+      <li>The homepage's combo-deal countdown banner (homepage spec §07) already has the UI; this is admin scheduling plus a stock-threshold "Only 5 left" read from <code>branch_inventory</code>.</li>
+      <li>Reuses the Promotions module's date-range and usage-limit fields (admin dashboard spec §06) — a flash sale is a promo with a short window, not a new entity.</li>
+    </ul></div>
+    <div class="card"><h4>Reviews &amp; social proof <span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy);margin-left:0.4rem">I 7 · E 3</span></h4><ul>
+      <li>The <code>Reviews</code> table and <code>POST /v1/products/:id/reviews</code> endpoint already exist (technical architecture doc §02–03).</li>
+      <li>Adds: a post-delivery automated request, a rating/count on product cards, and a small loyalty-point bonus for a photo review — the last one is a stub until Loyalty ships in Phase 2, but the review itself doesn't need to wait.</li>
+    </ul></div>
+    <div class="card"><h4>Cart free-delivery progress bar <span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy);margin-left:0.4rem">I 6 · E 2</span></h4><ul>
+      <li>Pulled out of the brief's "Cross-sell &amp; upsell engine" as its own line because it's nearly free: a bar reading the free-delivery threshold already in the order calculation engine (technical architecture doc §04), no recommendation logic at all.</li>
+      <li>The "frequently bought together" and "also bought" widgets are the real engineering lift — those ship in Phase 2 under their own entry.</li>
+    </ul></div>
+    <div class="card"><h4>Pet health content hub <span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy);margin-left:0.4rem">I 5 · E 3</span></h4><ul>
+      <li>A blog is mostly a CMS content type plus category/tag pages — low engineering effort relative to the rest of this list.</li>
+      <li>Worth starting early specifically because SEO is slow-compounding: the earlier the content exists, the more it's indexed by the time Robakeye needs the organic traffic.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 03 -->
+<section id="p2">
+  <div class="sec-head"><div class="tab">03</div><div><h2>Phase 2 features</h2><p>High impact, but either genuinely more effort to build correctly, or features that need real customer volume to have anything to act on.</p></div></div>
+
+  <div class="grid g2 wide">
+    <div class="card"><h4>Loyalty / rewards programme <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 8 · E 6</span></h4><ul>
+      <li>Points ledger, configurable earn rate, Bronze/Silver/Gold tiers, referral codes (both sides get ₦500 off) — several new entities and a redemption step inside the order calculation engine's existing loyalty-discount line (technical architecture doc §04, step 4, already reserved for this).</li>
+      <li>Needs repeat-purchase volume to be worth the build — a tier system with no second orders yet optimises nothing.</li>
+    </ul></div>
+    <div class="card"><h4>Prescription refill reminders <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 8 · E 5</span></h4><ul>
+      <li>Infers a refill cycle from order history per chronic-medication SKU, then fires a reminder with one-click reorder.</li>
+      <li>Reorder re-enters the existing per-line prescription verification flow (compliance doc §02) if the unlock token has expired — this is a new trigger into regulated infrastructure that already exists, not a new compliance surface.</li>
+    </ul></div>
+    <div class="card"><h4>Subscribe &amp; save <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 7 · E 7</span></h4><ul>
+      <li>Recurring Paystack billing, frequency selection, pre-charge notification, pause/cancel — real new billing-relationship complexity, including handling a failed recurring charge gracefully.</li>
+      <li>A subscribed POM item still has to pass prescription verification on each cycle, same reasoning as refill reminders, compounding the effort here specifically.</li>
+    </ul></div>
+    <div class="card"><h4>Cross-sell recommendation widgets <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 7 · E 5</span></h4><ul>
+      <li>"Frequently bought together" can launch as admin-curated pairs via the existing combo-deal mechanism (admin dashboard spec §06) — low effort.</li>
+      <li>"Customers who bought this also bought" needs real co-purchase data, which is exactly the volume problem — it has nothing to compute from on day one.</li>
+    </ul></div>
+    <div class="card"><h4>Customer segmentation for marketing <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 7 · E 6</span></h4><ul>
+      <li>A segment builder (e.g. "pet owners, no order in 60 days") over the existing customer/order schema, feeding Termii/email campaigns.</li>
+      <li>Same volume dependency as Loyalty — segmenting a small, new customer base returns segments too small to target usefully.</li>
+    </ul></div>
+    <div class="card"><h4>Multi-branch fulfilment optimisation <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 6 · E 6</span></h4><ul>
+      <li>A transfer-suggestion report reading <code>branch_inventory</code> and <code>inventory_log</code> (technical architecture doc §02) across branches — the data already exists from day one.</li>
+      <li>The effort is mostly in the suggestion logic itself; the real-world payoff needs a few months of demand pattern to be reliable, which is why it's Phase 2 rather than MVP despite low new-infrastructure cost.</li>
+    </ul></div>
+    <div class="card"><h4>Gift cards <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.4rem">I 5 · E 5</span></h4><ul>
+      <li>A stored-value ledger, purchase and redemption flows, breakage/fraud handling — genuinely new money-holding infrastructure, not a UI layer on something else.</li>
+      <li>Useful mainly as an acquisition channel (gifting brings in a new customer) — worth doing, not worth doing before the retention features above it.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 04 -->
+<section id="p3">
+  <div class="sec-head"><div class="tab">04</div><div><h2>Phase 3 features</h2><p>Lower impact relative to their effort today, or genuinely a different business model from the consumer storefront the rest of this series specs.</p></div></div>
+
+  <div class="grid g2 wide">
+    <div class="card"><h4>B2B / bulk ordering portal <span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep);margin-left:0.4rem">I 5 · E 8</span></h4><ul>
+      <li>Named "future phase consideration" in the brief itself. Separate pricing tier, invoice-based payment (a real departure from the Paystack-only consumer checkout), and likely its own approval workflow for an account, not an individual.</li>
+      <li>The addressable segment (hotels, clinics, offices) is real but small relative to the consumer verticals already being built — worth a dedicated spec of its own when pursued, not a bolt-on.</li>
+    </ul></div>
+    <div class="card"><h4>Gift cards, reconsidered timing <span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep);margin-left:0.4rem">see note</span></h4><ul>
+      <li>Plotted in Phase 2 on effort alone (§03) — listed again here because its actual priority depends on a business call, not engineering: is acquisition-via-gifting more valuable right now than the retention features ahead of it in the queue? Default assumption below is no, until MVP's retention features (Reviews, Abandoned Cart) show results worth compounding further.</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 05 -->
+<section id="sequencing">
+  <div class="sec-head"><div class="tab">05</div><div><h2>Sequencing &amp; dependencies</h2><p>A few features genuinely gate others — building them out of order means rework.</p></div></div>
+
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Dependency</th><th>Why it's ordered this way</th></tr></thead>
+      <tbody>
+        <tr><td>Reviews (MVP) → photo-review loyalty bonus (Phase 2)</td><td>The review mechanism ships first and works standalone; the points bonus is just a hook added once Loyalty exists, not a reason to delay Reviews.</td></tr>
+        <tr><td>Order history volume → Refill Reminders, Segmentation, Multi-branch Optimisation</td><td>All three compute something from past orders. None of them are wrong to build early, but none of them are useful until the MVP features have been live long enough to generate that history.</td></tr>
+        <tr><td>Prescription verification flow (already built) → Refill Reminders, Subscribe &amp; Save</td><td>Both re-enter the same compliance-doc flow for any POM line. Building either before that flow exists would mean building it twice.</td></tr>
+        <tr><td>Combo-deal mechanism (already built) → curated "frequently bought together"</td><td>The simple half of Cross-sell ships on existing admin tooling; only the data-driven "also bought" half waits on volume.</td></tr>
+        <tr><td>Loyalty points ledger → photo-review bonus, tier-based perks referenced elsewhere</td><td>Any feature that pays out points needs the ledger to exist first — this is the one Phase 2 feature most other Phase 2/3 ideas quietly depend on.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 06 -->
+<section id="open">
+  <div class="sec-head"><div class="tab">06</div><div><h2>Assumptions &amp; open items</h2><p>Business decisions this roadmap needs, not engineering ones.</p></div></div>
+  <ol class="open-items">
+    <li><b>Loyalty earn rate and tier thresholds</b>§03 assumes a configurable rate exists but doesn't set one — needs a real ₦-per-point ratio and the order-value thresholds for Bronze/Silver/Gold before the points ledger can be built.</li>
+    <li><b>Referral payout mechanism</b>"Both get ₦500 off" needs a decision on whether that's a wallet credit, a single-use promo code, or loyalty points — each has different fraud-prevention requirements (e.g. self-referral abuse).</li>
+    <li><b>Subscription failed-payment policy</b>§03 doesn't specify what happens after N failed recurring charges — pause, cancel, or retry on a schedule — needs a business answer before the Subscribe &amp; Save flow can be finished.</li>
+    <li><b>Gift card expiry and breakage</b>Whether Robakeye's gift cards expire, and how unredeemed balance is accounted for, is a finance and possibly regulatory question, not just a product one.</li>
+    <li><b>B2B pricing model</b>§04 defers the entire B2B portal, but even a future spec needs a starting assumption: percentage discount off standard pricing, or a separate negotiated price list per account.</li>
+    <li><b>Impact/effort scores are directional, not measured</b>Every score in §01 is this document's own estimate for sequencing purposes, not a result of user research or a cost estimate from engineering — revisit scores once MVP data (actual cart-abandonment rate, actual review submission rate) is in.</li>
+  </ol>
+</section>
+</main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var FEATURES = [
+    { name: "Abandoned cart recovery", short: "Cart recovery", impact: 8, effort: 3, phase: "mvp", note: "1h/24h/72h recovery sequence on existing cart + notification infra." },
+    { name: "Flash sales & deals", short: "Flash sales", impact: 6, effort: 3, phase: "mvp", note: "Reuses the homepage countdown banner and the Promotions module." },
+    { name: "Reviews & social proof", short: "Reviews", impact: 7, effort: 3, phase: "mvp", note: "Reviews entity and endpoint already exist in the architecture doc." },
+    { name: "Free-delivery progress bar", short: "Free-delivery bar", impact: 6, effort: 2, phase: "mvp", note: "Reads a threshold already in the order calculation engine." },
+    { name: "Pet health content hub", short: "Content hub", impact: 5, effort: 3, phase: "mvp", note: "Mostly a CMS content type; start early for SEO compounding." },
+    { name: "Loyalty / rewards", short: "Loyalty", impact: 8, effort: 6, phase: "p2", note: "Points ledger, tiers, referrals — needs repeat-purchase volume." },
+    { name: "Prescription refill reminders", short: "Refill reminders", impact: 8, effort: 5, phase: "p2", note: "Re-enters the existing pharmacist verification flow." },
+    { name: "Subscribe & save", short: "Subscribe & save", impact: 7, effort: 7, phase: "p2", note: "Recurring Paystack billing, pause/cancel, failed-charge handling." },
+    { name: "Cross-sell recommendations", short: "Cross-sell", impact: 7, effort: 5, phase: "p2", note: "Curated pairs ship early; “also bought” needs real co-purchase data." },
+    { name: "Customer segmentation", short: "Segmentation", impact: 7, effort: 6, phase: "p2", note: "Segment builder over order history — needs a real customer base." },
+    { name: "Multi-branch fulfilment", short: "Fulfilment opt.", impact: 6, effort: 6, phase: "p2", note: "Transfer suggestions from existing inventory data, needs months of pattern." },
+    { name: "Gift cards", short: "Gift cards", impact: 5, effort: 5, phase: "p2", note: "New stored-value ledger and redemption flow; fraud/breakage handling." },
+    { name: "B2B / bulk ordering", short: "B2B portal", impact: 5, effort: 8, phase: "p3", note: "Separate pricing tier, invoice payment, its own approval workflow." }
+  ];
+  var PHASE_LABEL = { mvp: "MVP", p2: "Phase 2", p3: "Phase 3" };
+  var PHASE_VAR = { mvp: "--ph-mvp", p2: "--ph-p2", p3: "--ph-p3" };
+
+  // --- chart geometry: 0-10 data space -> SVG px ---
+  var X0 = 70, X1 = 650, Y0 = 40, Y1 = 650; // plot bounds (Y0 = top/impact10, Y1 = bottom/impact0)
+  function sx(v) { return X0 + (v / 10) * (X1 - X0); }
+  function sy(v) { return Y1 - (v / 10) * (Y1 - Y0); }
+
+  var svgns = "http://www.w3.org/2000/svg";
+  function el(tag, attrs) {
+    var n = document.createElementNS(svgns, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  // gridlines at every 2 units
+  var gridG = document.getElementById("gridlines");
+  for (var g = 0; g <= 10; g += 2) {
+    gridG.appendChild(el("line", { class: "grid-line", x1: sx(g), y1: Y0, x2: sx(g), y2: Y1 }));
+    gridG.appendChild(el("line", { class: "grid-line", x1: X0, y1: sy(g), x2: X1, y2: sy(g) }));
+  }
+  // ticks
+  var xt = document.getElementById("xticks"), yt = document.getElementById("yticks");
+  [0, 5, 10].forEach(function (v) {
+    var t = el("text", { class: "tick", x: sx(v), y: Y1 + 18, "text-anchor": "middle" });
+    t.textContent = v; xt.appendChild(t);
+    var u = el("text", { class: "tick", x: X0 - 12, y: sy(v) + 3, "text-anchor": "end" });
+    u.textContent = v; yt.appendChild(u);
+  });
+
+  // Lanes assigned by hand after rendering: points sharing a row (same impact
+  // score) alternate above/below so label text never shares a text-line, even
+  // when their x-ranges overlap. Anchor grows away from the point's nearest
+  // same-lane neighbour.
+  var LABEL_POS = {
+    "Abandoned cart recovery": [-9, -13, "end"],
+    "Prescription refill reminders": [-9, -13, "end"],
+    "Loyalty / rewards": [9, -13, "start"],
+    "Reviews & social proof": [-9, -13, "end"],
+    "Cross-sell recommendations": [-9, 24, "end"],
+    "Customer segmentation": [9, -13, "start"],
+    "Subscribe & save": [9, 24, "start"],
+    "Free-delivery progress bar": [-9, -13, "end"],
+    "Flash sales & deals": [9, 24, "start"],
+    "Multi-branch fulfilment": [9, -13, "start"],
+    "Pet health content hub": [-9, -13, "end"],
+    "Gift cards": [9, 24, "start"],
+    "B2B / bulk ordering": [9, -13, "start"]
+  };
+
+  var ptsG = document.getElementById("points");
+  var tip = document.getElementById("ctip");
+  var wrap = document.querySelector(".chart-wrap");
+
+  FEATURES.forEach(function (f, i) {
+    var cx = sx(f.effort), cy = sy(f.impact);
+    var colorVar = PHASE_VAR[f.phase];
+    var grp = el("g", {});
+    var hit = el("circle", { class: "hit", cx: cx, cy: cy, r: 14, tabindex: "0", role: "img",
+      "aria-label": f.name + ". Impact " + f.impact + " of 10, effort " + f.effort + " of 10, " + PHASE_LABEL[f.phase] + ". " + f.note });
+    var dot = el("circle", { class: "dot", cx: cx, cy: cy, r: 6, fill: "var(" + colorVar + ")" });
+    var lp = LABEL_POS[f.name] || [8, -10];
+    var label = el("text", { class: "pt-label", x: cx + lp[0], y: cy + lp[1], "text-anchor": lp[2] || "start" });
+    label.textContent = f.short || f.name;
+
+    function show(e) {
+      tip.innerHTML = "";
+      var b = document.createElement("b"); b.textContent = f.name; tip.appendChild(b);
+      var meta = document.createElement("div"); meta.className = "meta";
+      meta.textContent = "Impact " + f.impact + "/10 · Effort " + f.effort + "/10";
+      var pill = document.createElement("span"); pill.className = "phase-pill";
+      pill.style.background = "var(" + colorVar + ")"; pill.style.color = f.phase === "p2" ? "#1B1E6D" : "#fff";
+      pill.textContent = PHASE_LABEL[f.phase];
+      meta.appendChild(pill); tip.appendChild(meta);
+      var note = document.createElement("div"); note.textContent = f.note; tip.appendChild(note);
+      var r = wrap.getBoundingClientRect();
+      var svgEl = document.getElementById("qchart");
+      var sr = svgEl.getBoundingClientRect();
+      var scale = sr.width / 720;
+      var px = sr.left - r.left + cx * scale;
+      var py = sr.top - r.top + cy * scale - 10;
+      tip.style.left = px + "px";
+      tip.style.top = py + "px";
+      tip.classList.add("show");
+    }
+    function hide() { tip.classList.remove("show"); }
+    hit.addEventListener("pointerenter", show);
+    hit.addEventListener("pointermove", show);
+    hit.addEventListener("pointerleave", hide);
+    hit.addEventListener("focus", show);
+    hit.addEventListener("blur", hide);
+
+    grp.appendChild(hit); grp.appendChild(dot); grp.appendChild(label);
+    ptsG.appendChild(grp);
+  });
+
+  // table view — same data, no hover required
+  var tbody = document.querySelector("#ftable tbody");
+  FEATURES.forEach(function (f) {
+    var tr = document.createElement("tr");
+    var tdName = document.createElement("td"); tdName.textContent = f.name;
+    var tdPhase = document.createElement("td");
+    var span = document.createElement("span"); span.className = "tag";
+    span.style.background = "var(" + colorVarFor(f.phase) + ")"; span.style.color = f.phase === "p2" ? "#1B1E6D" : "#fff";
+    span.textContent = PHASE_LABEL[f.phase]; tdPhase.appendChild(span);
+    var tdImpact = document.createElement("td"); tdImpact.className = "num"; tdImpact.textContent = f.impact + " / 10";
+    var tdEffort = document.createElement("td"); tdEffort.className = "num"; tdEffort.textContent = f.effort + " / 10";
+    var tdNote = document.createElement("td"); tdNote.textContent = f.note;
+    tr.appendChild(tdName); tr.appendChild(tdPhase); tr.appendChild(tdImpact); tr.appendChild(tdEffort); tr.appendChild(tdNote);
+    tbody.appendChild(tr);
+  });
+  function colorVarFor(phase) { return PHASE_VAR[phase]; }
+})();
+</script>

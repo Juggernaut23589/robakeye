@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * Robakeye design tokens — mirrors brand/tokens.json exactly.
+ * Tailwind v4 reads theme values from CSS (no tailwind.config.ts needed);
+ * this file IS the "tailwind.config" for this project.
+ */
+:root {
+  /* Primary */
+  --rk-navy: #1b1e6d;
+  --rk-navy-tint: #eeeff8;
+  --rk-blue: #2f38eb;
+  --rk-blue-tint: #eef0fe;
+  --rk-amber: #f19428;
+  --rk-amber-deep: #a65800;
+  --rk-amber-tint: #fef3e6;
+
+  /* Secondary (veterinary) */
+  --rk-lavender-mist: #f4f1fd;
+  --rk-lavender: #c8c1f1;
+  --rk-lavender-deep: #5a4cb0;
+
+  /* Semantic */
+  --rk-success: #1e7f46;
+  --rk-success-tint: #e8f4ec;
+  --rk-alert: #c62828;
+  --rk-alert-tint: #fcebeb;
+
+  /* Neutral */
+  --rk-n50: #fafafa;
+  --rk-n200: #e4e4e9;
+  --rk-n400: #a0a0aa;
+  --rk-n600: #5c5c66;
+  --rk-n900: #1a1a1a;
+
+  /* Surfaces */
+  --rk-bg: var(--rk-n50);
+  --rk-ink: var(--rk-n900);
+
+  /* Radius */
+  --rk-radius-sm: 6px;
+  --rk-radius-md: 10px;
+  --rk-radius-lg: 16px;
+  --rk-radius-pill: 999px;
+
+  color-scheme: light;
+}
+
+/*
+ * No dark-mode variant: every spec doc (brand guide, homepage mockup, IA
+ * spec) was designed light-only — navy text assumes a white/near-white
+ * surface throughout. An earlier auto `prefers-color-scheme: dark` flip
+ * here (Milestone 1) wasn't based on any actual spec and broke contrast
+ * site-wide (navy headings on a near-black background). If a dark theme
+ * is ever wanted, it needs its own design pass, not a blind token flip.
+ */
+
+@theme inline {
+  --color-rk-navy: var(--rk-navy);
+  --color-rk-navy-tint: var(--rk-navy-tint);
+  --color-rk-blue: var(--rk-blue);
+  --color-rk-blue-tint: var(--rk-blue-tint);
+  --color-rk-amber: var(--rk-amber);
+  --color-rk-amber-deep: var(--rk-amber-deep);
+  --color-rk-amber-tint: var(--rk-amber-tint);
+
+  --color-rk-lavender-mist: var(--rk-lavender-mist);
+  --color-rk-lavender: var(--rk-lavender);
+  --color-rk-lavender-deep: var(--rk-lavender-deep);
+
+  --color-rk-success: var(--rk-success);
+  --color-rk-success-tint: var(--rk-success-tint);
+  --color-rk-alert: var(--rk-alert);
+  --color-rk-alert-tint: var(--rk-alert-tint);
+
+  --color-rk-n50: var(--rk-n50);
+  --color-rk-n200: var(--rk-n200);
+  --color-rk-n400: var(--rk-n400);
+  --color-rk-n600: var(--rk-n600);
+  --color-rk-n900: var(--rk-n900);
+
+  --color-rk-bg: var(--rk-bg);
+  --color-rk-ink: var(--rk-ink);
+
+  --font-display: var(--font-sora), var(--font-work-sans), system-ui, sans-serif;
+  --font-body: var(--font-work-sans), system-ui, sans-serif;
+  --font-mono: var(--font-mono), monospace;
+
+  --radius-rk-sm: var(--rk-radius-sm);
+  --radius-rk-md: var(--rk-radius-md);
+  --radius-rk-lg: var(--rk-radius-lg);
+  --radius-rk-pill: var(--rk-radius-pill);
+}
+
+/* "Print / save receipt" on the order confirmation page prints only the
+   #receipt block — the rest of the storefront chrome (nav, announcement
+   bar, footer, and the page's own "view in account" links) is irrelevant
+   on a receipt. */
+@media print {
+  body > *:not(main) {
+    display: none !important;
+  }
+  #receipt ~ * {
+    display: none !important;
+  }
+}
+
+body {
+  font-family: var(--font-body);
+}

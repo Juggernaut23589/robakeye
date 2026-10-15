@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Robakeye badge">
+<title>Robakeye badge</title>
+<circle cx="100" cy="100" r="100" fill="#2F38EB"/>
+<path d="M100 36 L150 76 L150 154 L50 154 L50 76 Z" transform="translate(7 2)" fill="#C8C1F1" stroke="#C8C1F1" stroke-width="8" stroke-linejoin="round"/>
+<path d="M100 36 L150 76 L150 154 L50 154 L50 76 Z" fill="#F19428" stroke="#F19428" stroke-width="8" stroke-linejoin="round"/>
+<path transform="translate(56.18 104.00) scale(0.2466)" fill="#1B1E6D" d="M7.4 0V-73.6H26V0ZM51.4 0 30.9 -31H51.1L72.8 0ZM21.3 -22.4V-36.7H38.8Q42.1 -36.7 44.5 -38Q46.9 -39.3 48.25 -41.7Q49.6 -44.1 49.6 -47.3Q49.6 -50.6 48.25 -53Q46.9 -55.4 44.5 -56.7Q42.1 -58 38.8 -58H21.3V-73.6H37.7Q47.2 -73.6 54.1 -70.75Q61 -67.9 64.7 -62.35Q68.4 -56.8 68.4 -48.6V-47Q68.4 -38.8 64.65 -33.35Q60.9 -27.9 54.05 -25.15Q47.2 -22.4 37.7 -22.4Z M97 -19.4V-35.4H109Q112.4 -35.4 114.9 -36.75Q117.4 -38.1 118.8 -40.6Q120.2 -43.1 120.2 -46.5Q120.2 -50 118.8 -52.5Q117.4 -55 114.9 -56.3Q112.4 -57.6 109 -57.6H97V-73.6H108.5Q117.9 -73.6 124.75 -70.45Q131.6 -67.3 135.3 -61.4Q139 -55.5 139 -47.3V-45.7Q139 -37.6 135.3 -31.7Q131.6 -25.8 124.75 -22.6Q117.9 -19.4 108.5 -19.4ZM80.4 0V-73.6H99V0Z M147 0V-73H165.6V0ZM163.6 0V-16.2H193.2V0Z"/>
+<line x1="110" y1="116" x2="138" y2="88" stroke="#1B1E6D" stroke-width="9" stroke-linecap="round"/>
+<rect x="64" y="112" width="72" height="7" rx="3.5" fill="#1B1E6D"/>
+<path d="M68 118 H132 A32 24 0 0 1 68 118 Z" fill="#1B1E6D"/>
+<rect x="88" y="139" width="24" height="9" rx="3" fill="#1B1E6D"/>
+<path d="M100 122.5 V133.5 M94.5 128 H105.5" stroke="#FFFFFF" stroke-width="3.6" stroke-linecap="round"/>
+</svg>

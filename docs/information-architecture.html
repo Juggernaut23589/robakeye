@@ -1,0 +1,778 @@
+<title>Robakeye Information Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;600;700;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap">
+<style>
+/* Layout: spec document. Sticky index rail + a reading column that widens for
+   diagrams, trees and tables. Wireframes are schematic (grey blocks + numbered
+   callouts) — fidelity level is IA/UX architecture, not visual design; the
+   brand guide already covers the full-colour system this spec points into. */
+:root {
+  --rb-navy: #1B1E6D; --rb-blue: #2F38EB; --rb-amber: #F19428; --rb-amber-deep: #A65800;
+  --rb-lavender-mist: #F4F1FD; --rb-lavender: #C8C1F1; --rb-lavender-deep: #5A4CB0;
+  --rb-success: #1E7F46; --rb-alert: #C62828;
+  --rb-n50: #FAFAFA; --rb-n200: #E4E4E9; --rb-n400: #A0A0AA; --rb-n600: #5C5C66; --rb-n900: #1A1A1A;
+  --rb-navy-50: #EEEFF8; --rb-amber-50: #FEF3E6; --rb-success-50: #E8F4EC; --rb-alert-50: #FCEBEB;
+
+  --bg: #F6F4FC; --surface: #FFFFFF; --ink: #1B1C3A; --muted: #5D5C78; --line: #E2DFF0;
+  --accent: #2F38EB; --tab: #1B1E6D; --well: #EFEDF8;
+  --wf-fill: #ECEBF4; --wf-line: #C7C4DE; --wf-ink: #6D6B88;
+  --ok: #1E7F46; --warn: #A65800; --bad: #C62828;
+
+  --f-display: "Sora", "Work Sans", system-ui, sans-serif;
+  --f-body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --col: 46rem; --wide: 74rem; --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+    --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+    --wf-fill: #232548; --wf-line: #383A68; --wf-ink: #9593B8;
+    --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+  --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+  --wf-fill: #232548; --wf-line: #383A68; --wf-ink: #9593B8;
+  --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--f-body); }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--well); padding: 0.1em 0.35em; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.shell { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 3rem; max-width: 96rem; margin: 0 auto; padding-inline: 2rem; }
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; height: 100vh; padding-block: 2rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; }
+.rail .brand { display: flex; align-items: center; gap: 0.6rem; font: 700 1.05rem var(--f-display); color: var(--ink); }
+.rail .brand .dot { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--rb-blue); flex: none; display: grid; place-items: center; }
+.rail .brand .dot svg { width: 0.9rem; height: 0.9rem; color: #fff; }
+.rail .doctype { font: 600 0.7rem var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: -0.6rem; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.rail a { display: grid; grid-template-columns: 1.7rem 1fr; padding: 0.32rem 0.5rem; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.87rem; }
+.rail a:hover { background: var(--well); color: var(--ink); }
+.rail a span:first-child { font-family: var(--f-mono); font-size: 0.74rem; padding-top: 0.14rem; }
+.rail .meta { margin-top: auto; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+main { min-width: 0; padding-block: 2rem 6rem; }
+
+.cover { background: var(--rb-navy); color: #fff; border-radius: 18px; padding: clamp(1.5rem, 4vw, 3.5rem); position: relative; overflow: hidden; }
+.cover::after { content: ""; position: absolute; right: -7rem; bottom: -10rem; width: 26rem; height: 26rem; background: var(--rb-blue); clip-path: polygon(50% 0, 100% 32%, 100% 100%, 0 100%, 0 32%); opacity: 0.4; }
+.cover > * { position: relative; z-index: 1; }
+.eyebrow { font: 600 0.75rem/1.2 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cover .eyebrow { color: var(--rb-amber); }
+.cover h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 800; margin-block: 0.7rem 1rem; }
+.cover p { color: #D5D6F2; max-width: 42rem; font-size: 1.05rem; }
+.cover dl { display: flex; flex-wrap: wrap; gap: 0.5rem 2.25rem; margin: 1.75rem 0 0; font-size: 0.85rem; }
+.cover dt { color: #A9ABE0; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.cover dd { margin: 0; font-weight: 500; }
+
+section { padding-block: 5rem 0; scroll-margin-top: 1rem; }
+.sec-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; max-width: var(--col); margin-bottom: 2rem; }
+.tab { width: 3.4rem; height: 3.6rem; background: var(--tab); color: #fff; clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%); display: grid; place-items: end center; padding-bottom: 0.55rem; font: 700 1rem/1 var(--f-mono); }
+.sec-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); letter-spacing: -0.015em; line-height: 1.1; }
+.sec-head p { color: var(--muted); margin-top: 0.6rem; font-size: 1.03rem; }
+.prose { max-width: var(--col); display: grid; gap: 1rem; }
+.prose p, .prose li { max-width: 68ch; }
+h3.sub { font-size: 1.15rem; margin-block: 3rem 1rem; display: flex; gap: 0.6rem; align-items: baseline; }
+h3.sub small { font: 500 0.78rem var(--f-mono); color: var(--muted); }
+.note { max-width: var(--col); background: var(--well); border-radius: var(--r); padding: 1rem 1.25rem; font-size: 0.92rem; }
+.note strong { font-family: var(--f-display); }
+.wide { max-width: var(--wide); }
+.grid { display: grid; gap: 1rem; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; min-width: 0; }
+.card h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+.card ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.92rem; }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: 0.89rem; }
+th, td { text-align: left; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.7rem/1.3 var(--f-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); background: var(--well); }
+tr:last-child td { border-bottom: 0; }
+.tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; font: 600 0.7rem var(--f-body); white-space: nowrap; }
+.sample { display: inline-block; font: 600 0.63rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--rb-amber-deep); background: var(--rb-amber-50); padding: 0.12rem 0.4rem; border-radius: 4px; }
+
+/* ---- branch cards */
+.branches { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; max-width: var(--wide); }
+.branch { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; }
+.branch .bh { padding: 1rem 1.1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.branch .bh b { font-family: var(--f-display); font-size: 0.95rem; }
+.branch .flagship .bh { background: var(--rb-navy); color: #fff; }
+.branch:not(.flagship) .bh { background: var(--rb-navy-50); color: var(--rb-navy); }
+.branch .bb { padding: 1rem 1.1rem 1.2rem; display: grid; gap: 0.7rem; font-size: 0.87rem; flex: 1; }
+.branch .addr { color: var(--muted); line-height: 1.5; }
+.branch .verts { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+/* ---- tree */
+.tree { max-width: var(--wide); font-size: 0.92rem; }
+.tree ul { list-style: none; margin: 0; padding-left: 1.3rem; border-left: 1px dashed var(--line); }
+.tree > ul { padding-left: 0; border-left: 0; }
+.tree li { position: relative; padding: 0.22rem 0 0.22rem 1.1rem; }
+.tree li::before { content: ""; position: absolute; left: 0; top: 1rem; width: 0.9rem; height: 1px; background: var(--line); }
+.tree .node { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.tree .page { font-weight: 600; color: var(--ink); }
+.tree .t { font: 600 0.62rem var(--f-mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 0.06rem 0.4rem; border-radius: 4px; }
+.t-page { background: var(--rb-navy-50); color: var(--rb-navy); }
+.t-flow { background: var(--rb-amber-50); color: var(--rb-amber-deep); }
+.t-modal { background: var(--rb-lavender-mist); color: var(--rb-lavender-deep); }
+.t-admin { background: var(--well); color: var(--muted); }
+.t-gate { background: var(--rb-alert-50); color: var(--bad); }
+.tree .desc { color: var(--muted); font-size: 0.86rem; }
+
+/* ---- mermaid */
+/* Mermaid's default theme draws message text and lines in a dark colour meant for
+   a light diagram background. Pin the container to a fixed light surface in both
+   themes so sequence/flow text stays legible — don't let it inherit --surface. */
+pre.mermaid { background: #FDFDFF; border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; max-width: var(--wide); overflow-x: auto; }
+
+/* ---- wireframes */
+.wf { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1rem; }
+.wf-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.6rem; background: var(--well); border-radius: 6px; margin-bottom: 0.85rem; font: 500 0.72rem var(--f-mono); color: var(--muted); }
+.wf-bar i { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--wf-line); }
+.wf-grid { display: grid; gap: 0.6rem; }
+.wf-row { display: flex; gap: 0.6rem; }
+.wf-row > * { min-width: 0; }
+.wfb { background: var(--wf-fill); border: 1px dashed var(--wf-line); border-radius: 6px; color: var(--wf-ink); font-size: 0.74rem; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0.5rem; line-height: 1.3; position: relative; }
+.wfb.solid { border-style: solid; }
+.wfb.navy { background: var(--rb-navy); border-color: var(--rb-navy); color: #fff; font-weight: 600; }
+.wfb.amber { background: var(--rb-amber); border-color: var(--rb-amber); color: var(--rb-navy); font-weight: 600; }
+.wfb.locked { background: var(--rb-alert-50); border-color: var(--bad); color: var(--bad); font-weight: 600; }
+.wfb.ok { background: var(--rb-success-50); border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.wfb.ghost { background: transparent; }
+.cnum { position: absolute; top: -0.55rem; right: -0.55rem; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--accent); color: #fff; font: 700 0.68rem var(--f-mono); display: grid; place-items: center; z-index: 2; }
+.wf-panel { display: grid; grid-template-columns: minmax(0, 1fr) 15.5rem; gap: 1.25rem; max-width: var(--wide); align-items: start; }
+.wf-legend { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1rem 1.1rem; display: grid; gap: 0.7rem; align-self: start; }
+.wf-legend li { list-style: none; display: grid; grid-template-columns: 1.3rem 1fr; gap: 0.5rem; font-size: 0.82rem; }
+.wf-legend b { width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--accent); color: #fff; font: 700 0.68rem var(--f-mono); display: grid; place-items: center; }
+.wf-legend span { color: var(--muted); line-height: 1.45; }
+.wf-legend ul { margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+
+/* ---- calc waterfall */
+.waterfall { max-width: var(--col); display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); }
+.wf-step { display: grid; grid-template-columns: 1.6rem minmax(0,1fr) auto; gap: 0.75rem; align-items: center; padding: 0.7rem 1rem; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.wf-step:last-child { border-bottom: 0; }
+.wf-step .n { font: 700 0.72rem var(--f-mono); color: var(--muted); }
+.wf-step .label { font-weight: 500; }
+.wf-step .sub { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 0.1rem; }
+.wf-step .amt { font: 600 0.95rem var(--f-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wf-step.minus .amt { color: var(--ok); }
+.wf-step.plus .amt { color: var(--ink); }
+.wf-step.total { background: var(--rb-navy); color: #fff; }
+.wf-step.total .n, .wf-step.total .amt, .wf-step.total .sub { color: #D5D6F2; }
+.wf-step.total .amt { color: #fff; font-size: 1.15rem; }
+
+/* ---- status pills for order tracking */
+.statusline { display: flex; max-width: var(--wide); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); font-size: 0.78rem; font-weight: 600; }
+.statusline span { flex: 1; text-align: center; padding: 0.5rem 0.4rem; background: var(--well); color: var(--muted); }
+.statusline span.done { background: var(--rb-navy); color: #fff; }
+.statusline span.now { background: var(--rb-amber); color: var(--rb-navy); }
+
+.open-items { max-width: var(--wide); counter-reset: oi; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.open-items li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0.85rem 1rem 0.85rem 3rem; position: relative; font-size: 0.92rem; }
+.open-items li::before { counter-increment: oi; content: counter(oi); position: absolute; left: 1rem; top: 0.85rem; font: 700 0.85rem var(--f-mono); color: var(--accent); }
+.open-items li b { font-family: var(--f-display); display: block; margin-bottom: 0.15rem; }
+
+@media (max-width: 1100px) {
+  .g3, .branches, .wf-row { grid-template-columns: minmax(0, 1fr); }
+  .wf-row { flex-direction: column; }
+  .wf-panel { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 960px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-inline: 1rem; gap: 0; }
+  .rail { display: none; }
+  .g2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .sec-head { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="shell">
+<nav class="rail" aria-label="Document sections">
+  <div class="brand"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</div>
+  <div class="doctype">Information architecture</div>
+  <ol>
+    <li><a href="#overview"><span>00</span><span>Overview &amp; branches</span></a></li>
+    <li><a href="#sitemap"><span>01</span><span>Site map</span></a></li>
+    <li><a href="#location"><span>02</span><span>Location-aware inventory</span></a></li>
+    <li><a href="#prescription"><span>03</span><span>Prescription flow</span></a></li>
+    <li><a href="#vet"><span>04</span><span>Vet booking flow</span></a></li>
+    <li><a href="#cart"><span>05</span><span>Cart &amp; order logic</span></a></li>
+    <li><a href="#delivery"><span>06</span><span>Delivery partner selection</span></a></li>
+    <li><a href="#dashboard"><span>07</span><span>Account dashboard</span></a></li>
+    <li><a href="#open"><span>08</span><span>Assumptions &amp; open items</span></a></li>
+  </ol>
+  <p class="meta">Version 1.0 · October 2026<br>Companion to the <a href="../brand/robakeye-brand-guide.html">brand guide</a></p>
+</nav>
+
+<main>
+<header class="cover">
+  <p class="eyebrow">Information architecture &amp; flows · v1.0</p>
+  <h1>Robakeye platform</h1>
+  <p>Site map, location-aware inventory logic, and the five flows that make three business verticals across three branches work as one checkout. Written for a Figma conversion and an engineering build: every flow names its screens, its decision points, and the data it reads.</p>
+  <dl>
+    <div><dt>Branches</dt><dd>3, independent inventory</dd></div>
+    <div><dt>Verticals</dt><dd>Pharmacy · Veterinary · Supermarket</dd></div>
+    <div><dt>Surfaces</dt><dd>Customer web + Admin/staff backend</dd></div>
+  </dl>
+</header>
+
+<!-- ============================================================ 00 -->
+<section id="overview">
+  <div class="sec-head"><div class="tab">00</div><div><h2>Overview &amp; branches</h2><p>Three branches, three different service levels. Everything downstream — catalogue filtering, booking, delivery — keys off this table.</p></div></div>
+
+  <div class="branches">
+    <div class="branch">
+      <div class="bh"><b>Branch A · Ajadi</b><span class="tag" style="background:var(--well);color:var(--muted)">AJD</span></div>
+      <div class="bb">
+        <div class="addr">New Eleyele Road (opposite Gabstab filling station), Ajadi Bus-stop / Junction, Ologuneru</div>
+        <div class="verts"><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></div>
+      </div>
+    </div>
+    <div class="branch">
+      <div class="bh"><b>Branch B · Ojoo</b><span class="tag" style="background:var(--well);color:var(--muted)">OJO</span></div>
+      <div class="bb">
+        <div class="addr">No. 10 Bethel House, Onila Aro Bus-stop, Lagos-Ojoo Expressway</div>
+        <div class="verts"><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></div>
+      </div>
+    </div>
+    <div class="branch flagship">
+      <div class="bh"><b>Branch C · Sheu (Flagship)</b><span class="tag" style="background:rgba(255,255,255,0.18);color:#fff">SHU</span></div>
+      <div class="bb">
+        <div class="addr">Along Ologuneru-Eruwa Road, Sheu Bus-stop, Ologuneru</div>
+        <div class="verts"><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span><span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep)">Veterinary</span><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:1rem"><strong>Assumption.</strong> The brief names Branch C as flagship with "full supermarket + full veterinary clinic + pharmacy" but doesn't state what Branches A and B carry. This spec assumes A and B run Pharmacy and Supermarket only, with no vet clinic — which is also why deliverable 4 says vet services exist "at flagship only." Confirm this with the business before build; it changes the branch-matching logic in section 02 and the vet redirect copy in section 04.</div>
+
+  <h3 class="sub">How to read this document</h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4><span class="tag t-page" style="background:var(--rb-navy-50);color:var(--rb-navy)">Page</span></h4><ul><li>A full route with its own URL.</li></ul></div>
+    <div class="card"><h4><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Flow</span></h4><ul><li>A sequence spanning several screens or states, documented as a diagram.</li></ul></div>
+    <div class="card"><h4><span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep)">Modal</span></h4><ul><li>An overlay that doesn't change the URL.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:1rem">All names, prices, distances and people in this spec are illustrative. <span class="sample">Sample data</span> marks them inline; confirm real figures (geofence radii, delivery fees, tax treatment) before these flows are built.</p>
+</section>
+
+<!-- ============================================================ 01 -->
+<section id="sitemap">
+  <div class="sec-head"><div class="tab">01</div><div><h2>Site map</h2><p>Full hierarchy for the customer-facing site and the admin backend. Category trees under Pharmacy and Supermarket are representative, not exhaustive — confirm the final taxonomy with merchandising.</p></div></div>
+
+  <div class="tree">
+  <ul>
+    <li><span class="node"><span class="page">Home</span> <span class="t t-page">page</span></span><div class="desc">Branch-aware hero, 3 vertical entry tiles, store locator CTA, promo rail.</div></li>
+    <li><span class="node"><span class="page">Pharmacy</span> <span class="t t-page">page</span></span><div class="desc">Landing with OTC categories and the two restricted-access entry points.</div>
+      <ul>
+        <li><span class="node">OTC Catalogue <span class="t t-page">page</span></span><div class="desc">Pain &amp; Fever · Cold &amp; Flu · First Aid · Vitamins &amp; Supplements · Skin Care · Baby &amp; Mother · Sexual Health · Diabetes &amp; Chronic Care · Medical Devices.</div></li>
+        <li><span class="node">Prescription-Restricted Catalogue <span class="t t-page">page</span></span><div class="desc">Same category tree; every tile shows a locked state — see section 03.</div></li>
+        <li><span class="node">Talk to a Pharmacist <span class="t t-flow">flow</span></span><div class="desc">Entry point into the consult flow (section 03) from anywhere on the pharmacy pages.</div></li>
+        <li><span class="node">Upload Prescription <span class="t t-page">page</span></span><div class="desc">Standalone upload, for a customer who arrives with a prescription but hasn't picked products yet.</div></li>
+      </ul>
+    </li>
+    <li><span class="node"><span class="page">Veterinary</span> <span class="t t-page">page</span></span>
+      <ul>
+        <li><span class="node">Pet Products Catalogue <span class="t t-page">page</span></span><div class="desc">Filtered by species (Dog · Cat · Bird · Other) then by Food · Grooming · Health &amp; Wellness · Accessories · Bedding &amp; Crates.</div></li>
+        <li><span class="node">Book a Vet Visit <span class="t t-flow">flow</span></span><div class="desc">See section 04. Only bookable against Branch C.</div></li>
+        <li><span class="node">Vet Service Pricing <span class="t t-page">page</span></span><div class="desc">Static price list by service type, feeds the booking flow's summary step.</div></li>
+        <li><span class="node">Pet Health Resources <span class="t t-page">page</span></span><div class="desc">Article library: vaccination schedules, breed care guides, seasonal advisories.</div></li>
+      </ul>
+    </li>
+    <li><span class="node"><span class="page">Supermarket</span> <span class="t t-page">page</span></span>
+      <ul>
+        <li><span class="node">Groceries <span class="t t-page">page</span></span><div class="desc">Rice &amp; Grains · Pasta &amp; Noodles · Oils &amp; Seasoning · Canned &amp; Packaged · Baking.</div></li>
+        <li><span class="node">Household <span class="t t-page">page</span></span><div class="desc">Cleaning · Laundry · Kitchen &amp; Storage · Paper Goods.</div></li>
+        <li><span class="node">Beverages <span class="t t-page">page</span></span><div class="desc">Soft Drinks · Juices · Water · Tea &amp; Coffee · Alcoholic <span class="t t-gate">18+</span> age-gated at cart, not at browse.</div></li>
+        <li><span class="node">Personal Care <span class="t t-page">page</span></span><div class="desc">Hair · Skin · Oral · Bath &amp; Body.</div></li>
+        <li><span class="node">Baby Care <span class="t t-page">page</span></span><div class="desc">Diapers · Formula · Baby Food · Baby Toiletries.</div></li>
+        <li><span class="node">Frozen Foods <span class="t t-page">page</span></span><div class="desc">Meat &amp; Poultry · Fish &amp; Seafood · Ready Meals · Ice Cream. Cold-chain delivery constraint — see section 06.</div></li>
+        <li><span class="node">Snacks <span class="t t-page">page</span></span><div class="desc">Biscuits · Chips · Confectionery · Nuts &amp; Dried Fruit.</div></li>
+      </ul>
+    </li>
+    <li><span class="node">Store Locator <span class="t t-page">page</span></span><div class="desc">Map + 3 branch cards: address, hours, phone, services offered, "set as my branch."</div></li>
+    <li><span class="node">Cart <span class="t t-page">page</span></span><div class="desc">Grouped by branch and vertical when mixed — see section 05.</div></li>
+    <li><span class="node">Checkout <span class="t t-flow">flow</span></span><div class="desc">Delivery → Payment → Review → Confirmation. Branches into split-fulfilment when the cart spans branches.</div></li>
+    <li><span class="node">My Account <span class="t t-page">page</span></span><div class="desc">See section 07 for the full dashboard structure.</div>
+      <ul>
+        <li><span class="node">Overview <span class="t t-page">page</span></span></li>
+        <li><span class="node">Orders &amp; Tracking <span class="t t-page">page</span></span></li>
+        <li><span class="node">Addresses <span class="t t-page">page</span></span></li>
+        <li><span class="node">Payment Methods <span class="t t-page">page</span></span></li>
+        <li><span class="node">Prescriptions <span class="t t-page">page</span></span></li>
+        <li><span class="node">Pet Profiles &amp; Vet Appointments <span class="t t-page">page</span></span></li>
+        <li><span class="node">Wishlist <span class="t t-page">page</span></span></li>
+        <li><span class="node">Reviews <span class="t t-page">page</span></span></li>
+        <li><span class="node">Support Tickets <span class="t t-page">page</span></span></li>
+        <li><span class="node">Notification Preferences <span class="t t-page">page</span></span></li>
+      </ul>
+    </li>
+    <li><span class="node">Admin / Staff Backend <span class="t t-admin">admin</span></span><div class="desc">Separate application, role-gated by branch and vertical. Out of scope for this spec beyond the touch points named in sections 03–04; listed here for completeness.</div>
+      <ul>
+        <li><span class="node">Dashboard <span class="t t-admin">admin</span></span><div class="desc">Per-branch, defaults to the staff member's assigned branch.</div></li>
+        <li><span class="node">Inventory Management <span class="t t-admin">admin</span></span><div class="desc">Stock levels, thresholds, per-branch — the source of truth for section 02.</div></li>
+        <li><span class="node">Order Management <span class="t t-admin">admin</span></span></li>
+        <li><span class="node">Prescription Review Queue <span class="t t-admin">admin</span></span><div class="desc">Pharmacist's side of section 03.</div></li>
+        <li><span class="node">Vet Appointments Calendar <span class="t t-admin">admin</span></span><div class="desc">Vet staff availability — the source of truth for section 04.</div></li>
+        <li><span class="node">Customer Management <span class="t t-admin">admin</span></span></li>
+        <li><span class="node">Delivery &amp; Logistics <span class="t t-admin">admin</span></span><div class="desc">Courier assignment, in-house rider dispatch — see section 06.</div></li>
+        <li><span class="node">Promotions &amp; Loyalty <span class="t t-admin">admin</span></span></li>
+        <li><span class="node">Staff &amp; Roles <span class="t t-admin">admin</span></span></li>
+        <li><span class="node">Reports &amp; Analytics <span class="t t-admin">admin</span></span></li>
+      </ul>
+    </li>
+    <li><span class="node">Static Pages <span class="t t-page">page</span></span>
+      <ul>
+        <li><span class="node">About Robakeye <span class="t t-page">page</span></span></li>
+        <li><span class="node">Contact Us <span class="t t-page">page</span></span></li>
+        <li><span class="node">Privacy Policy <span class="t t-page">page</span></span></li>
+        <li><span class="node">Terms of Service <span class="t t-page">page</span></span></li>
+        <li><span class="node">FAQ <span class="t t-page">page</span></span></li>
+        <li><span class="node">Careers <span class="t t-page">page</span></span></li>
+        <li><span class="node">Blog / Health Tips <span class="t t-page">page</span></span></li>
+      </ul>
+    </li>
+  </ul>
+  </div>
+</section>
+
+<!-- ============================================================ 02 -->
+<section id="location">
+  <div class="sec-head"><div class="tab">02</div><div><h2>Location-aware inventory</h2><p>Every product page answers one question first: can I actually get this, and from where. Branch match happens once per session and is re-usable everywhere the catalogue is shown.</p></div></div>
+
+  <pre class="mermaid">
+flowchart TD
+    A["Customer lands on any catalogue page"] --> B{"Branch already known this session?"}
+    B -- "yes, saved address or\nprevious branch pick" --> F["Catalogue filters to that branch"]
+    B -- "no" --> C["Step 1 — Locate\nGPS prompt / manual area entry / pick a saved address"]
+    C --> D["Step 2 — Match\nGeofence against the 3 branch coordinates,\nrank by distance and delivery radius"]
+    D --> E{"At least one branch\nwithin radius?"}
+    E -- "no" --> N["Show: delivery not yet available here\noffer pickup from nearest branch instead"]
+    E -- "yes" --> F
+    F --> G{"Item in stock at\nnearest matched branch?"}
+    G -- "yes" --> H["Step 3 — PDP shows:\nAvailable at [Branch] — X km away"]
+    G -- "no" --> I{"In stock at another\nbranch in radius?"}
+    I -- "yes" --> J["Step 4 — PDP shows:\nAvailable at [Other Branch]\nmay add delivery time / fee"]
+    I -- "no" --> K["Step 5 — PDP shows:\nOut of stock everywhere\nNotify me — email / SMS capture"]
+  </pre>
+
+  <h3 class="sub">States on the product page</h3>
+  <div class="wf-panel">
+    <div class="wf">
+      <div class="wf-bar"><i></i><i></i><i></i><span>robakeye.com/supermarket/groceries/rice-5kg</span></div>
+      <div class="wf-grid">
+        <div class="wf-row">
+          <div class="wfb" style="flex:0 0 7rem;height:7rem">Product image</div>
+          <div class="wf-grid" style="flex:1">
+            <div class="wfb ghost solid" style="justify-content:flex-start;text-align:left">Long-grain rice, 5kg <span class="sample" style="margin-left:0.4rem">sample</span></div>
+            <div class="wfb ok" style="justify-content:flex-start">① Available at Branch A — Ajadi · 2.4 km away</div>
+            <div class="wfb amber" style="max-width:9rem">Add to basket</div>
+          </div>
+        </div>
+        <div class="wfb" style="justify-content:flex-start;text-align:left">② Also sold at Branch C (Sheu, 7.1 km) and Branch B (Ojoo, 9.8 km) — switch branch</div>
+      </div>
+    </div>
+    <ul class="wf-legend"><ul>
+      <li><b>1</b><span><strong>Primary availability line.</strong> Always names the matched branch and distance, styled as a positive/confirmed state. This line is the one piece of inventory truth repeated on every card, PDP and cart line.</span></li>
+      <li><b>2</b><span><strong>Branch switcher.</strong> Secondary, collapsed by default. Lets a customer deliberately shop a farther branch — e.g. picking up in person — without that becoming their default match.</span></li>
+    </ul></ul>
+  </div>
+
+  <h3 class="sub">Out of stock at the matched branch <small>step 4</small></h3>
+  <div class="wf-panel">
+    <div class="wf">
+      <div class="wf-grid">
+        <div class="wfb locked" style="justify-content:flex-start">① Out of stock at Branch A — Ajadi (your branch)</div>
+        <div class="wfb" style="justify-content:flex-start;text-align:left;background:var(--rb-amber-50);border-color:var(--rb-amber-deep);color:var(--rb-amber-deep)">② Available at Branch C — Sheu · 7.1 km away — may add delivery time or fee</div>
+        <div class="wf-row">
+          <div class="wfb navy" style="max-width:11rem">③ Add from Branch C</div>
+          <div class="wfb ghost solid" style="max-width:11rem">Notify me at Branch A instead</div>
+        </div>
+      </div>
+    </div>
+    <ul class="wf-legend"><ul>
+      <li><b>1</b><span>Named failure state, not a generic "unavailable" — tells the customer exactly which branch and why.</span></li>
+      <li><b>2</b><span>The fallback is explicit about the trade-off before the customer commits.</span></li>
+      <li><b>3</b><span>Accepting this adds the item to a <em>second</em> branch group in the cart — triggers the split-fulfilment flow in section 05.</span></li>
+    </ul></ul>
+  </div>
+
+  <h3 class="sub">Fully unavailable <small>step 5</small></h3>
+  <div class="wf">
+    <div class="wf-row">
+      <div class="wfb locked" style="flex:1;justify-content:flex-start">① Out of stock at every branch</div>
+    </div>
+    <div class="wf-row" style="margin-top:0.6rem">
+      <div class="wfb ghost solid" style="justify-content:flex-start;text-align:left;flex:2">② Notify me when available — [ email or phone field ]</div>
+      <div class="wfb navy" style="max-width:8rem">Notify me</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">② writes to a per-product, per-branch waitlist. When inventory marks the item back in stock at a branch the customer subscribed through, fire the SMS/email and clear the subscription — a customer never gets notified twice for the same restock.</p>
+
+  <h3 class="sub">Edge case — cart spans two branches</h3>
+  <p class="prose">A customer adds rice from Branch A, then later adds dog food only available at Branch C (the flagship, since it's the only one with a vet/pet aisle). The cart does not block this; it groups it. Checkout then treats it as two sub-orders under one payment — detailed in section 05.</p>
+
+  <div class="tbl wide" style="margin-top:1rem">
+    <table>
+      <thead><tr><th>Rule</th><th>Behaviour</th></tr></thead>
+      <tbody>
+        <tr><td>Branch match is sticky</td><td>Stored for the session (and on the account, once logged in) so it isn't re-run on every page. A manual "switch branch" always overrides it.</td></tr>
+        <tr><td>Radius is per-branch, not uniform</td><td>Branch C (flagship) may justify a larger delivery radius than A and B. Store radius as a per-branch setting in admin, not a hardcoded constant.</td></tr>
+        <tr><td>Stock check is real-time</td><td>The "in stock" read happens at page load and again at add-to-cart, not cached — two customers racing for the last unit at a branch must not both succeed.</td></tr>
+        <tr><td>Pickup bypasses matching</td><td>If the customer chooses in-store pickup instead of delivery, any branch with stock is offered, regardless of radius.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 03 -->
+<section id="prescription">
+  <div class="sec-head"><div class="tab">03</div><div><h2>Prescription medication flow</h2><p>Nothing tagged prescription-only becomes purchasable without a named pharmacist's approval, and every approval is logged against a licence number.</p></div></div>
+
+  <pre class="mermaid">
+sequenceDiagram
+    participant C as Customer
+    participant W as Web app
+    participant P as Pharmacist (admin)
+    participant S as SMS / Email
+
+    C->>W: Opens a Prescription Required product
+    W-->>C: "Add to cart" replaced by "Consult Pharmacist to Order"
+    C->>W: Taps CTA
+    W-->>C: Opens consult modal (chat / WhatsApp / callback form)
+    C->>W: Submits name, phone, medication, preferred contact time
+    W->>P: New request enters Review Queue
+    P->>P: Reviews request, prescription upload (if any), patient history
+    alt Approved
+        P->>W: Approves, enters licence ID
+        W->>W: Generates one-time unlock token (time-limited)
+        W->>S: Sends unlock link via SMS/email
+        S-->>C: Customer receives link
+        C->>W: Opens link — item becomes purchasable for this customer
+        C->>W: Completes purchase within the token's validity window
+    else Rejected
+        P->>W: Rejects, enters a reason
+        W->>S: Sends rejection notice + suggested next step (e.g. "visit a branch")
+    end
+    W->>W: Logs event: requester, pharmacist, licence ID, decision, timestamp
+  </pre>
+
+  <h3 class="sub">Locked product tile</h3>
+  <div class="wf-panel">
+    <div class="wf">
+      <div class="wf-grid">
+        <div class="wf-row">
+          <div class="wfb" style="flex:0 0 6rem;height:6rem">Capsule icon</div>
+          <div class="wf-grid" style="flex:1">
+            <div class="wfb ghost solid" style="justify-content:flex-start">Amoxicillin 500mg ×24 <span class="sample" style="margin-left:0.4rem">sample</span></div>
+            <div class="wfb locked">① Prescription required</div>
+          </div>
+        </div>
+        <div class="wfb amber" style="max-width:14rem">② Consult Pharmacist to Order</div>
+      </div>
+    </div>
+    <ul class="wf-legend"><ul>
+      <li><b>1</b><span>Badge replaces the price-forward treatment every other product gets — the compliance state is the first thing read, not a footnote.</span></li>
+      <li><b>2</b><span>Replaces "Add to cart" entirely. There is no way to add this item to a cart without going through this CTA — enforced server-side, not just hidden in the UI.</span></li>
+    </ul></ul>
+  </div>
+
+  <h3 class="sub">Consult modal</h3>
+  <div class="wf">
+    <div class="wf-grid">
+      <div class="wfb ghost solid" style="justify-content:flex-start">① Talk to a pharmacist about: Amoxicillin 500mg ×24</div>
+      <div class="wf-row"><div class="wfb">Full name</div><div class="wfb">Phone number</div></div>
+      <div class="wfb ghost solid" style="justify-content:flex-start">② Medication / condition notes</div>
+      <div class="wfb ghost solid" style="justify-content:flex-start">③ Upload prescription (optional here, required before approval)</div>
+      <div class="wf-row"><div class="wfb">Preferred contact time</div><div class="wfb navy">Submit request</div></div>
+      <div class="wfb" style="justify-content:flex-start;background:transparent;border:none;color:var(--muted);font-size:0.72rem">④ Or chat now via WhatsApp →</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">④ WhatsApp Business API is the faster path for a customer who already has an account there; the form is the fallback for everyone else and the only path that guarantees a structured record in the review queue. Both write to the same Review Queue entity.</p>
+
+  <h3 class="sub">Pharmacist review <small>admin side</small></h3>
+  <div class="wf">
+    <div class="wf-bar"><i></i><i></i><i></i><span>admin.robakeye.com/pharmacy/review-queue/RQ-10482</span></div>
+    <div class="wf-grid">
+      <div class="wf-row">
+        <div class="wfb ghost solid" style="justify-content:flex-start;flex:1">Customer: sample name · Branch A · Submitted 14:02</div>
+        <div class="wfb" style="max-width:9rem;background:var(--rb-amber-50);border-color:var(--rb-amber-deep);color:var(--rb-amber-deep)">Pending</div>
+      </div>
+      <div class="wfb ghost solid" style="justify-content:flex-start">Requested: Amoxicillin 500mg ×24 — notes: "for a 7-day course, prescribed after dental work"</div>
+      <div class="wfb ghost solid" style="justify-content:flex-start">Attached prescription image — [ thumbnail ]</div>
+      <div class="wf-row">
+        <div class="wfb ok" style="max-width:10rem">Approve</div>
+        <div class="wfb locked" style="max-width:10rem">Reject</div>
+        <div class="wfb ghost solid" style="flex:1">Reviewing pharmacist: licence ID (auto-filled from session)</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">Audit trail <small>what gets logged, every time</small></h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Field</th><th>Captured</th></tr></thead>
+      <tbody>
+        <tr><td>Request ID</td><td>Generated on submission, shown to the customer as a reference.</td></tr>
+        <tr><td>Customer &amp; product</td><td>Who asked, for what SKU, at which branch.</td></tr>
+        <tr><td>Channel</td><td>Form, WhatsApp, or callback.</td></tr>
+        <tr><td>Decision</td><td>Approved / rejected / expired (token issued but never redeemed).</td></tr>
+        <tr><td>Reviewing pharmacist</td><td>Staff ID and PCN licence number, not just a name.</td></tr>
+        <tr><td>Timestamps</td><td>Submitted, reviewed, token issued, token redeemed or expired.</td></tr>
+        <tr><td>Rejection reason</td><td>Required field when rejecting — feeds the customer-facing message.</td></tr>
+        <tr><td>Unlock token</td><td>Single-use, time-limited (confirm validity window with the business — 24–72h is typical).</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:1rem"><strong>Compliance note.</strong> This log is the artifact a regulator or auditor asks for. It should be append-only (no edits, only new entries) and retained per Nigerian pharmacy-practice record-keeping requirements — confirm the retention period with PCN guidance before build, see section 08.</p>
+</section>
+
+<!-- ============================================================ 04 -->
+<section id="vet">
+  <div class="sec-head"><div class="tab">04</div><div><h2>Veterinary booking flow</h2><p>Booking only ever resolves to Branch C. The other branches say so plainly instead of pretending to offer a service they can't deliver.</p></div></div>
+
+  <pre class="mermaid">
+flowchart TD
+    A["Book a Visit"] --> B{"Customer's matched branch\nis the flagship (Branch C)?"}
+    B -- "yes" --> D["Select service type:\nCheckup · Vaccination · Grooming · Surgery · Emergency"]
+    B -- "no, Branch A or B" --> C["Vet services available at\nflagship (Sheu) only — book here\n[ switches booking context to Branch C\nwithout changing the customer's shopping branch ]"]
+    C --> D
+    D --> E["Select pet type\n(existing pet profile or add new)"]
+    E --> F["Select date &amp; time slot\nsynced to vet staff availability"]
+    F --> G["Pet profile form\nname, species, breed, age, medical history notes"]
+    G --> H["Review &amp; confirm\nservice + date/time + est. price from pricing page"]
+    H --> I["Confirmation screen + calendar file"]
+    I --> J["Reminder — SMS/email 24h before"]
+    J --> K["Visit happens"]
+    K --> L["Post-visit record added to pet profile:\nvisit notes, prescribed meds, next visit due"]
+  </pre>
+
+  <h3 class="sub">Branch redirect notice <small>shown on Branches A / B</small></h3>
+  <div class="wf-panel">
+    <div class="wf">
+      <div class="wf-grid">
+        <div class="wfb" style="justify-content:flex-start;text-align:left;background:var(--rb-lavender-mist);border-color:var(--rb-lavender-deep);color:var(--rb-lavender-deep)">① Vet services are available at our Sheu flagship only</div>
+        <div class="wfb ghost solid" style="justify-content:flex-start">② Sheu branch, Ologuneru-Eruwa Road — 7.1 km from Branch A <span class="sample">sample</span></div>
+        <div class="wfb navy" style="max-width:10rem">Book at Sheu →</div>
+      </div>
+    </div>
+    <ul class="wf-legend"><ul>
+      <li><b>1</b><span>States the limitation up front — no dead-end "service unavailable," the next step is always visible.</span></li>
+      <li><b>2</b><span>Shows the distance so the customer can judge the trip before committing to a date/time.</span></li>
+    </ul></ul>
+  </div>
+
+  <h3 class="sub">Booking calendar</h3>
+  <div class="wf">
+    <div class="wf-grid">
+      <div class="wf-row">
+        <div class="wfb amber" style="max-width:9rem">Vaccination</div>
+        <div class="wfb ghost solid" style="max-width:9rem">Checkup</div>
+        <div class="wfb ghost solid" style="max-width:9rem">Grooming</div>
+        <div class="wfb ghost solid" style="max-width:9rem">Surgery</div>
+        <div class="wfb locked" style="max-width:9rem">Emergency →</div>
+      </div>
+      <div class="wfb" style="justify-content:flex-start;background:transparent;border:none;color:var(--muted);font-size:0.72rem">① Emergency bypasses the calendar — routes straight to a branch phone number, not a slot booking.</div>
+      <div class="wf-row">
+        <div class="wfb" style="flex:1;height:5.5rem">② Calendar — available dates highlighted, pulled live from vet staff rota</div>
+        <div class="wf-grid" style="flex:1">
+          <div class="wfb">09:00</div><div class="wfb">09:30</div><div class="wfb locked">10:00 — full</div><div class="wfb">10:30</div>
+        </div>
+      </div>
+      <div class="wfb ghost solid" style="justify-content:flex-start">③ Pet: Bingo (existing profile) — or + Add a new pet</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">① A genuine emergency shouldn't be funnelled through a slot picker. Surface the branch's direct line immediately and still log the contact attempt, so staff see emergency demand even outside the calendar.</p>
+
+  <h3 class="sub">Pet profile, confirmation &amp; the post-visit record</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>Pet profile fields</h4><ul>
+      <li>Name, species, breed, sex, date of birth or estimated age</li>
+      <li>Known conditions / allergies (free text)</li>
+      <li>Linked owner account (one account, multiple pets)</li>
+      <li>Photo (optional)</li>
+    </ul></div>
+    <div class="card"><h4>Post-visit record</h4><ul>
+      <li>Visit date, service type, attending vet</li>
+      <li>Clinical notes (vet-entered, customer-visible summary)</li>
+      <li>Medication prescribed — links into the prescription flow if it's a controlled item</li>
+      <li>Next visit due date — surfaces as a reminder on the account Overview (section 07)</li>
+    </ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 05 -->
+<section id="cart">
+  <div class="sec-head"><div class="tab">05</div><div><h2>Cart &amp; order management</h2><p>One calculation order, applied the same way whether the cart has one item or three branches' worth.</p></div></div>
+
+  <h3 class="sub">Calculation order</h3>
+  <div class="waterfall">
+    <div class="wf-step"><span class="n">01</span><span class="label">Item price<span class="sub">Sum of line items at catalogue price</span></span><span class="amt">₦24,700</span></div>
+    <div class="wf-step minus"><span class="n">02</span><span class="label">Combo / bundle discount<span class="sub">Applied per eligible line, before any code</span></span><span class="amt">−₦1,200</span></div>
+    <div class="wf-step minus"><span class="n">03</span><span class="label">Promo code<span class="sub">ROBAKEYE10 — percentage or fixed, cart-level</span></span><span class="amt">−₦2,350</span></div>
+    <div class="wf-step minus"><span class="n">04</span><span class="label">Loyalty points redeemed<span class="sub">Customer chooses how many points to spend</span></span><span class="amt">−₦500</span></div>
+    <div class="wf-step total"><span class="n">=</span><span class="label">Subtotal</span><span class="amt">₦20,650</span></div>
+    <div class="wf-step plus"><span class="n">05</span><span class="label">Delivery fee<span class="sub">By distance and provider — see section 06. Two sub-orders = two fees, see below.</span></span><span class="amt">+₦1,800</span></div>
+    <div class="wf-step plus"><span class="n">06</span><span class="label">Service fee<span class="sub">Platform/handling fee, if the business charges one</span></span><span class="amt">+₦150</span></div>
+    <div class="wf-step plus"><span class="n">07</span><span class="label">VAT / tax<span class="sub">Nigeria zero-rates most essential drugs; confirm per-category tax codes before build</span></span><span class="amt">+₦1,116</span></div>
+    <div class="wf-step total"><span class="n">=</span><span class="label">Final total</span><span class="amt">₦23,716</span></div>
+  </div>
+  <p class="note" style="margin-top:1rem">Discounts stack in the fixed order above — combo discounts never recalculate after a promo code is applied, and loyalty points are the last reduction before the subtotal locks. This order must be enforced server-side at order creation, not just reflected in the UI, so the price a customer sees at review is the price they're charged. <span class="sample">All amounts above are sample figures.</span></p>
+
+  <h3 class="sub">Mixed cart <small>pharmacy + vet + supermarket, two branches</small></h3>
+  <div class="wf">
+    <div class="wf-grid">
+      <div class="wfb" style="justify-content:flex-start;background:transparent;border:none;color:var(--rb-navy);font-weight:700;padding-left:0">① Branch A — Ajadi <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep);margin-left:0.5rem;font-weight:600">Supermarket · 2 items</span></div>
+      <div class="wf-row"><div class="wfb ghost solid" style="justify-content:flex-start;flex:1">Long-grain rice, 5kg</div><div class="wfb ghost solid" style="max-width:6rem">₦11,500</div></div>
+      <div class="wf-row"><div class="wfb ghost solid" style="justify-content:flex-start;flex:1">Paracetamol 500mg ×24</div><div class="wfb ghost solid" style="max-width:6rem">₦1,200</div></div>
+      <div class="wfb" style="justify-content:flex-start;background:transparent;border:none;color:var(--rb-lavender-deep);font-weight:700;padding-left:0;margin-top:0.4rem">② Branch C — Sheu <span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep);margin-left:0.5rem;font-weight:600">Veterinary · 1 item</span></div>
+      <div class="wf-row"><div class="wfb ghost solid" style="justify-content:flex-start;flex:1">Adult dog food, 3kg</div><div class="wfb ghost solid" style="max-width:6rem">₦9,800</div></div>
+      <div class="wfb" style="justify-content:flex-start;background:var(--rb-alert-50);border-color:var(--bad);color:var(--bad);margin-top:0.4rem">③ Amoxicillin 500mg ×24 — unlock expired, consult a pharmacist to re-add</div>
+    </div>
+  </div>
+  <ul class="wf-legend" style="max-width:var(--wide);margin-top:1rem"><ul>
+    <li><b>1</b><span>Cart groups by branch first, vertical label second — this is also how checkout will split fulfilment.</span></li>
+    <li><b>2</b><span>A second branch group appears the moment an item from Branch C is added — this is what triggers split-fulfilment at checkout.</span></li>
+    <li><b>3</b><span>A prescription unlock token (section 03) can expire while sitting in the cart. The item stays visible but blocks checkout until re-consulted, rather than silently vanishing.</span></li>
+  </ul></ul>
+
+  <h3 class="sub">Split-fulfilment at checkout</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>Sub-order 1 — Branch A</h4><ul>
+      <li>Rice + Paracetamol, ₦12,700</li>
+      <li>In-house delivery, 2.4 km — ₦800 — 35–50 min</li>
+      <li>Own tracking timeline (section 07)</li>
+    </ul></div>
+    <div class="card"><h4>Sub-order 2 — Branch C</h4><ul>
+      <li>Dog food, ₦9,800</li>
+      <li>Third-party courier, 7.1 km — ₦1,000 — 60–90 min</li>
+      <li>Own tracking timeline</li>
+    </ul></div>
+  </div>
+  <p class="note" style="margin-top:1rem">One payment, two fulfilment records. The order confirmation and the Orders &amp; Tracking page (section 07) both show "Order #RPL-2026-0451 — 2 deliveries" and let the customer expand each sub-order independently. Delivery fees are itemised per sub-order at review, never silently combined into one number — the customer should be able to see why a split cart costs more to deliver than a single-branch one.</p>
+</section>
+
+<!-- ============================================================ 06 -->
+<section id="delivery">
+  <div class="sec-head"><div class="tab">06</div><div><h2>Delivery partner selection</h2><p>One abstraction, several providers behind it — in-house riders for what's close, third-party couriers for everything else.</p></div></div>
+
+  <pre class="mermaid">
+flowchart TD
+    A["Checkout — Delivery step"] --> B{"Within in-house\nrider radius of the branch?"}
+    B -- "yes" --> C["Offer: Robakeye in-house delivery\n+ third-party options, if also available"]
+    B -- "no" --> D["Offer: third-party couriers only\n(Gokada / Kwik / Fez — pluggable)"]
+    C --> E["Each option shows:\nprovider · est. time · fee"]
+    D --> E
+    E --> F["Customer selects one option\nper sub-order"]
+    F --> G["Fee + ETA locked into\nthe order's calculation (step 05 of the waterfall)"]
+  </pre>
+
+  <h3 class="sub">Delivery option selector</h3>
+  <div class="wf">
+    <div class="wf-grid">
+      <div class="wfb" style="justify-content:flex-start;background:transparent;border:none;color:var(--muted);font-size:0.78rem;padding-left:0">Sub-order 1 — Branch A, 2.4 km</div>
+      <div class="wf-row">
+        <div class="wfb navy" style="flex:1;justify-content:flex-start;text-align:left">① Robakeye Delivery — 35–50 min — ₦800</div>
+      </div>
+      <div class="wf-row">
+        <div class="wfb ghost solid" style="flex:1;justify-content:flex-start;text-align:left">Kwik — 45–70 min — ₦950</div>
+      </div>
+      <div class="wf-row">
+        <div class="wfb ghost solid" style="flex:1;justify-content:flex-start;text-align:left">Gokada — 50–75 min — ₦900</div>
+      </div>
+      <div class="wfb" style="justify-content:flex-start;background:transparent;border:none;color:var(--muted);font-size:0.72rem;padding-left:0;margin-top:0.2rem">② Frozen items in this sub-order require insulated/cold-chain transport — only providers that support it are listed.</div>
+    </div>
+  </div>
+  <ul class="wf-legend" style="max-width:var(--wide);margin-top:1rem"><ul>
+    <li><b>1</b><span>In-house delivery is the default selection when it's offered — it's usually the cheapest and the one Robakeye controls end-to-end for cold-chain and pharmacy items.</span></li>
+    <li><b>2</b><span>Provider list filters by cart contents, not just distance — a cart with frozen goods or temperature-sensitive medicine (the insulated pharmacy box from the brand guide's livery section) can't be handed to a courier without cold-chain capability.</span></li>
+  </ul></ul>
+
+  <div class="tbl wide" style="margin-top:1.25rem">
+    <table>
+      <thead><tr><th>Provider type</th><th>Integration shape</th><th>Used when</th></tr></thead>
+      <tbody>
+        <tr><td>Robakeye in-house</td><td>Internal dispatch queue in the admin Delivery &amp; Logistics module — not a third-party API.</td><td>Within each branch's own rider radius (configurable per branch, see section 02).</td></tr>
+        <tr><td>Third-party courier</td><td>Pluggable adapter per provider (quote → book → webhook status updates) behind one internal interface, so adding a new courier doesn't touch checkout logic.</td><td>Outside rider radius, or as a cheaper/faster alternative the customer can pick over in-house.</td></tr>
+        <tr><td>Pickup</td><td>No delivery partner — order status skips straight to "Ready for pickup."</td><td>Customer opts out of delivery entirely, any branch with stock.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 07 -->
+<section id="dashboard">
+  <div class="sec-head"><div class="tab">07</div><div><h2>Customer account dashboard</h2><p>One account across all three verticals — a pending vet appointment and a pharmacy reorder live on the same Overview.</p></div></div>
+
+  <div class="wf-panel">
+    <div class="wf">
+      <div class="wf-bar"><i></i><i></i><i></i><span>robakeye.com/account</span></div>
+      <div class="wf-row">
+        <div class="wf-grid" style="flex:0 0 11rem">
+          <div class="wfb navy" style="justify-content:flex-start">① Overview</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Orders &amp; Tracking</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Addresses</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Payment Methods</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Prescriptions</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Pets &amp; Appointments</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Wishlist</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Reviews</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Support Tickets</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Notifications</div>
+        </div>
+        <div class="wf-grid" style="flex:1">
+          <div class="wf-row">
+            <div class="wfb" style="flex:1;height:4.5rem;justify-content:flex-start;align-items:flex-start;text-align:left;padding:0.6rem">② Loyalty points: 1,240 pts (≈ ₦1,240) — Redeem at checkout</div>
+            <div class="wfb" style="flex:1;height:4.5rem;justify-content:flex-start;align-items:flex-start;text-align:left;padding:0.6rem;background:var(--rb-lavender-mist);border-color:var(--rb-lavender-deep);color:var(--rb-lavender-deep)">③ Bingo's vaccination — tomorrow, 10:30, Sheu branch</div>
+          </div>
+          <div class="wfb" style="justify-content:flex-start;align-items:flex-start;text-align:left;padding:0.6rem;height:3rem">④ Order #RPL-2026-0451 — 2 deliveries — 1 out for delivery, 1 preparing</div>
+          <div class="wfb ghost solid" style="justify-content:flex-start">Recent orders list — 3 most recent, "view all" to Orders &amp; Tracking</div>
+        </div>
+      </div>
+    </div>
+    <ul class="wf-legend"><ul>
+      <li><b>1</b><span>Left nav is fixed across every account page — this is the dashboard's spine, matching the site map's "My Account" branch in section 01.</span></li>
+      <li><b>2</b><span>Loyalty balance is visible on Overview, not buried in a separate page, since it's spendable on the very next order.</span></li>
+      <li><b>3</b><span>An upcoming vet appointment surfaces here even though its detail lives under Pets &amp; Appointments — this is the cross-vertical moment the brief asks for explicitly.</span></li>
+      <li><b>4</b><span>A split order (section 05) shows as one line with its sub-order count, not two separate unrelated orders.</span></li>
+    </ul></ul>
+  </div>
+
+  <h3 class="sub">Order tracking states</h3>
+  <div class="statusline">
+    <span class="done">Confirmed</span><span class="done">Preparing</span><span class="now">Out for delivery</span><span>Delivered</span>
+  </div>
+  <p class="note" style="margin-top:1rem">A split order shows one status line per sub-order, each independently progressing — the Branch A line can read "Delivered" while the Branch C line still reads "Preparing."</p>
+
+  <h3 class="sub">Section-by-section notes</h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Prescriptions</h4><ul><li>History of consult requests with status (section 03), not just approved orders.</li><li>Re-upload or re-consult directly from an expired entry.</li></ul></div>
+    <div class="card"><h4>Pets &amp; Appointments</h4><ul><li>One card per pet, each expanding to its visit history and next-due reminder (section 04).</li><li>"Book another visit" pre-fills the pet.</li></ul></div>
+    <div class="card"><h4>Support Tickets</h4><ul><li>A ticket can reference an order, a prescription request, or an appointment — link it to the relevant record rather than free text alone.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 08 -->
+<section id="open">
+  <div class="sec-head"><div class="tab">08</div><div><h2>Assumptions &amp; open items</h2><p>Decisions this spec made in order to stay concrete, that the business should confirm before design or build locks them in.</p></div></div>
+  <ol class="open-items">
+    <li><b>Branch A and B's vertical mix</b>Assumed Pharmacy + Supermarket, no vet clinic, since only the flagship is described as full-service. Confirm, since it changes the branch-match and vet-redirect logic directly.</li>
+    <li><b>Geofence radii</b>Per-branch delivery radius and in-house-rider radius are both treated as admin-configurable settings here, with no real values supplied. Needs real numbers per branch before section 02 can be built.</li>
+    <li><b>Delivery partner list</b>Gokada, Kwik and Fez are named in the brief as examples. Confirm which are actually under commercial agreement, and get each one's quote/booking API shape before building the adapter interface in section 06.</li>
+    <li><b>Tax treatment</b>Nigeria commonly zero-rates essential medicines for VAT; supermarket goods typically don't get the same treatment. The calculation order in section 05 assumes per-category tax codes exist — confirm which categories are taxed and at what rate.</li>
+    <li><b>Prescription token validity window</b>Modelled as time-limited in section 03 without a stated duration. Needs a business decision (24–72h is a common range) and should be checked against PCN record-keeping and dispensing guidance.</li>
+    <li><b>Loyalty points — earn and redemption rules</b>Section 05 shows points being redeemed; earn rate, expiry, and whether points differ by vertical are undefined here.</li>
+    <li><b>Alcoholic beverages age gate</b>Flagged in the sitemap as gated at cart. Confirm whether Nigerian regulation requires ID capture/verification at checkout or delivery, not just a checkbox.</li>
+    <li><b>Split-order refunds and partial cancellation</b>Not covered in section 05. If one sub-order fails (stock pulled after payment, courier can't fulfil), the refund/replace flow for just that sub-order needs its own spec before build.</li>
+  </ol>
+</section>
+</main>
+</div>

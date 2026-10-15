@@ -1,0 +1,631 @@
+<title>Robakeye Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;600;700;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap">
+<style>
+/* Layout: same spec shell as the other Robakeye documents. The admin product
+   itself gets a distinct register from the homepage (Shopify/Linear/Retool:
+   dark sidebar, dense light content, small type, real table chrome) — built
+   once as a reusable shell, then reused with different content per module
+   rather than re-rendering the full chrome 13 times. */
+:root {
+  --rb-navy: #1B1E6D; --rb-blue: #2F38EB; --rb-amber: #F19428; --rb-amber-deep: #A65800;
+  --rb-lavender-mist: #F4F1FD; --rb-lavender: #C8C1F1; --rb-lavender-deep: #5A4CB0;
+  --rb-success: #1E7F46; --rb-alert: #C62828;
+  --rb-n50: #FAFAFA; --rb-n200: #E4E4E9; --rb-n400: #A0A0AA; --rb-n600: #5C5C66; --rb-n900: #1A1A1A;
+  --rb-navy-50: #EEEFF8; --rb-amber-50: #FEF3E6; --rb-success-50: #E8F4EC; --rb-alert-50: #FCEBEB;
+
+  --bg: #F6F4FC; --surface: #FFFFFF; --ink: #1B1C3A; --muted: #5D5C78; --line: #E2DFF0;
+  --accent: #2F38EB; --tab: #1B1E6D; --well: #EFEDF8;
+  --ok: #1E7F46; --warn: #A65800; --bad: #C62828;
+
+  --f-display: "Sora", "Work Sans", system-ui, sans-serif;
+  --f-body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --col: 46rem; --wide: 80rem; --r: 10px;
+
+  /* admin product's own palette — dark sidebar, light dense content */
+  --ad-side: #13153E; --ad-side-hi: #1E2158; --ad-side-ink: #C7C9ED; --ad-side-ink-dim: #7C7EB0;
+  --ad-bg: #F6F6F9; --ad-surface: #FFFFFF; --ad-line: #E3E3EC; --ad-ink: #16172B; --ad-muted: #68697E;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+    --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+    --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+  --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+  --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--f-body); }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--well); padding: 0.1em 0.35em; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.shell { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 3rem; max-width: 100rem; margin: 0 auto; padding-inline: 2rem; }
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; height: 100vh; padding-block: 2rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; }
+.rail .brand { display: flex; align-items: center; gap: 0.6rem; font: 700 1.05rem var(--f-display); color: var(--ink); }
+.rail .brand .dot { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--rb-blue); flex: none; display: grid; place-items: center; }
+.rail .brand .dot svg { width: 0.9rem; height: 0.9rem; color: #fff; }
+.rail .doctype { font: 600 0.7rem var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: -0.6rem; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.06rem; }
+.rail a { display: grid; grid-template-columns: 1.7rem 1fr; padding: 0.26rem 0.5rem; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.82rem; }
+.rail a:hover { background: var(--well); color: var(--ink); }
+.rail a span:first-child { font-family: var(--f-mono); font-size: 0.7rem; padding-top: 0.14rem; }
+.rail .meta { margin-top: auto; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+main { min-width: 0; padding-block: 2rem 6rem; }
+
+.cover { background: var(--rb-navy); color: #fff; border-radius: 18px; padding: clamp(1.5rem, 4vw, 3.5rem); position: relative; overflow: hidden; }
+.cover::after { content: ""; position: absolute; right: -7rem; bottom: -10rem; width: 26rem; height: 26rem; background: var(--rb-blue); clip-path: polygon(50% 0, 100% 32%, 100% 100%, 0 100%, 0 32%); opacity: 0.4; }
+.cover > * { position: relative; z-index: 1; }
+.eyebrow { font: 600 0.75rem/1.2 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cover .eyebrow { color: var(--rb-amber); }
+.cover h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 800; margin-block: 0.7rem 1rem; }
+.cover p { color: #D5D6F2; max-width: 42rem; font-size: 1.05rem; }
+.cover dl { display: flex; flex-wrap: wrap; gap: 0.5rem 2.25rem; margin: 1.75rem 0 0; font-size: 0.85rem; }
+.cover dt { color: #A9ABE0; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.cover dd { margin: 0; font-weight: 500; }
+
+section { padding-block: 5rem 0; scroll-margin-top: 1rem; }
+.sec-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; max-width: var(--col); margin-bottom: 2rem; }
+.tab { width: 3.4rem; height: 3.6rem; background: var(--tab); color: #fff; clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%); display: grid; place-items: end center; padding-bottom: 0.55rem; font: 700 1rem/1 var(--f-mono); }
+.sec-head h2 { font-size: clamp(1.5rem, 3vw, 2.1rem); letter-spacing: -0.015em; line-height: 1.1; }
+.sec-head p { color: var(--muted); margin-top: 0.6rem; font-size: 1.02rem; }
+.prose { max-width: var(--col); display: grid; gap: 1rem; }
+.prose p, .prose li { max-width: 68ch; }
+h3.sub { font-size: 1.1rem; margin-block: 2.75rem 1rem; display: flex; gap: 0.6rem; align-items: baseline; }
+h3.sub small { font: 500 0.78rem var(--f-mono); color: var(--muted); }
+.note { max-width: var(--col); background: var(--well); border-radius: var(--r); padding: 1rem 1.25rem; font-size: 0.92rem; }
+.note strong { font-family: var(--f-display); }
+.wide { max-width: var(--wide); }
+.grid { display: grid; gap: 1rem; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; min-width: 0; }
+.card h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+.card ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.92rem; }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.66rem/1.3 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--well); }
+tr:last-child td { border-bottom: 0; }
+.tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; font: 600 0.7rem var(--f-body); white-space: nowrap; }
+.sample { display: inline-block; font: 600 0.63rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--rb-amber-deep); background: var(--rb-amber-50); padding: 0.12rem 0.4rem; border-radius: 4px; }
+.open-items { max-width: var(--wide); counter-reset: oi; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.open-items li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0.85rem 1rem 0.85rem 3rem; position: relative; font-size: 0.92rem; }
+.open-items li::before { counter-increment: oi; content: counter(oi); position: absolute; left: 1rem; top: 0.85rem; font: 700 0.85rem var(--f-mono); color: var(--accent); }
+.open-items li b { font-family: var(--f-display); display: block; margin-bottom: 0.15rem; }
+
+/* ===================== admin product chrome ===================== */
+.frame { background: var(--ad-surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: var(--wide); box-shadow: 0 20px 50px -24px rgba(27,30,109,0.28); }
+.frame .chrome { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem; background: #ECEAF5; border-bottom: 1px solid var(--ad-line); }
+.frame .chrome i { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #C7C4DE; }
+.frame .chrome span { margin-left: 0.7rem; background: #fff; border-radius: 6px; padding: 0.18rem 0.8rem; font: 0.7rem var(--f-mono); color: #6D6B88; }
+.admin { display: grid; grid-template-columns: 13.5rem minmax(0,1fr); font-family: var(--f-body); color: var(--ad-ink); min-height: 30rem; }
+.asb { background: var(--ad-side); color: var(--ad-side-ink); display: flex; flex-direction: column; padding: 0.9rem 0.7rem; gap: 0.2rem; }
+.asb .org { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.5rem 0.9rem; font: 700 0.85rem var(--f-display); color: #fff; }
+.asb .org .m { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--rb-blue); display: grid; place-items: center; flex: none; }
+.asb .org .m svg { width: 0.9rem; height: 0.9rem; color: #fff; }
+.asb .org small { display: block; font: 500 0.65rem var(--f-mono); color: var(--ad-side-ink-dim); font-weight: 400; margin-top: 0.1rem; }
+.asb .sec { font: 700 0.62rem var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ad-side-ink-dim); padding: 0.7rem 0.5rem 0.25rem; }
+.asb a { display: flex; align-items: center; gap: 0.55rem; padding: 0.42rem 0.5rem; border-radius: 6px; font-size: 0.78rem; color: var(--ad-side-ink); text-decoration: none; }
+.asb a svg { width: 0.95rem; height: 0.95rem; flex: none; opacity: 0.85; }
+.asb a.on { background: var(--ad-side-hi); color: #fff; }
+.asb a.on svg { opacity: 1; }
+.asb .spacer { flex: 1; }
+.asb .who { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.5rem; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.4rem; font-size: 0.74rem; }
+.asb .who .av { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--rb-amber); color: var(--rb-navy); display: grid; place-items: center; font: 700 0.65rem var(--f-display); flex: none; }
+.asb .who b { display: block; font-size: 0.76rem; color: #fff; }
+.asb .who span { color: var(--ad-side-ink-dim); font-size: 0.68rem; }
+.acontent { background: var(--ad-bg); color: var(--ad-ink); padding: 1.1rem 1.3rem; display: grid; gap: 1rem; align-content: start; }
+.anote { background: #EEF0FE; color: var(--ad-ink); border-radius: 8px; padding: 0.8rem 1rem; font-size: 0.8rem; line-height: 1.5; }
+.anote code { background: #DCE0FA; color: var(--ad-ink); }
+.atop { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.atop h3 { font-size: 1.15rem; }
+.atop .sub { color: var(--ad-muted); font-size: 0.78rem; margin-top: 0.1rem; }
+.abtn { border-radius: 7px; font: 600 0.78rem var(--f-body); padding: 0.45rem 0.85rem; border: 0; cursor: pointer; }
+.abtn.pri { background: var(--rb-navy); color: #fff; }
+.abtn.sec { background: #fff; color: var(--ad-ink); box-shadow: inset 0 0 0 1px var(--ad-line); }
+.abtn.danger { background: var(--bad); color: #fff; }
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 0.7rem; }
+.kpi { background: var(--ad-surface); border: 1px solid var(--ad-line); border-radius: 9px; padding: 0.75rem 0.85rem; display: grid; gap: 0.2rem; }
+.kpi .l { font-size: 0.68rem; color: var(--ad-muted); }
+.kpi .v { font: 700 1.25rem var(--f-display); font-variant-numeric: tabular-nums; }
+.kpi .d { font-size: 0.66rem; font-weight: 600; }
+.kpi .d.up { color: var(--ok); }
+.kpi .d.warn { color: var(--rb-amber-deep); }
+.panel-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0.9rem; }
+.apanel { background: var(--ad-surface); border: 1px solid var(--ad-line); border-radius: 9px; padding: 0.9rem 1rem; }
+.apanel h4 { font-size: 0.85rem; margin-bottom: 0.7rem; }
+.chart { height: 7rem; display: flex; align-items: flex-end; gap: 0.4rem; }
+.chart div { flex: 1; background: linear-gradient(180deg, var(--rb-blue), var(--rb-navy)); border-radius: 3px 3px 0 0; }
+.chart-legend { display: flex; justify-content: space-between; font-size: 0.64rem; color: var(--ad-muted); margin-top: 0.4rem; }
+.feed { display: grid; gap: 0.55rem; }
+.feed .f-row { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.76rem; }
+.feed .f-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--rb-blue); margin-top: 0.35rem; flex: none; }
+.feed .f-time { color: var(--ad-muted); font-size: 0.68rem; }
+.atable { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+.atable th { text-align: left; padding: 0.5rem 0.6rem; color: var(--ad-muted); font: 600 0.65rem var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid var(--ad-line); background: transparent; }
+.atable td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--ad-line); }
+.atable tr:last-child td { border-bottom: 0; }
+.atoolbar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.asearch { background: #fff; box-shadow: inset 0 0 0 1px var(--ad-line); border-radius: 7px; padding: 0.38rem 0.7rem; font-size: 0.76rem; color: var(--ad-muted); min-width: 11rem; }
+.chip { background: #fff; box-shadow: inset 0 0 0 1px var(--ad-line); border-radius: 999px; padding: 0.3rem 0.65rem; font-size: 0.72rem; color: var(--ad-ink); display: inline-flex; align-items: center; gap: 0.3rem; }
+.chip.on { background: var(--rb-navy-50); box-shadow: inset 0 0 0 1px var(--rb-navy); color: var(--rb-navy); font-weight: 600; }
+.pill { display: inline-flex; align-items: center; padding: 0.12rem 0.5rem; border-radius: 999px; font: 600 0.68rem var(--f-body); }
+.pager { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--ad-muted); margin-top: 0.3rem; }
+
+/* permission matrix */
+.pm-wrap { overflow-x: auto; max-width: var(--wide); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.pm { border-collapse: collapse; font-size: 0.78rem; min-width: 64rem; }
+.pm th, .pm td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0.45rem 0.55rem; text-align: center; white-space: nowrap; }
+.pm th:first-child, .pm td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); z-index: 1; min-width: 13rem; }
+.pm thead th { background: var(--well); font: 600 0.66rem var(--f-display); letter-spacing: 0.02em; writing-mode: vertical-rl; transform: rotate(180deg); height: 7rem; vertical-align: bottom; padding-bottom: 0.6rem; }
+.pm thead th:first-child { writing-mode: horizontal-tb; transform: none; vertical-align: middle; background: var(--well); }
+.pm .grp td:first-child { background: var(--rb-navy-50); color: var(--rb-navy); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pm .yes { color: var(--ok); font-weight: 700; }
+.pm .part { color: var(--rb-amber-deep); font-weight: 700; }
+.pm .no { color: var(--rb-n400); }
+
+/* role builder */
+.rb-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.4rem; }
+.rb-cell { display: flex; align-items: center; gap: 0.45rem; font-size: 0.76rem; padding: 0.4rem 0.5rem; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 1px var(--ad-line); }
+.rb-cell input { width: 0.95rem; height: 0.95rem; accent-color: var(--rb-navy); }
+.rb-cell.on { background: var(--rb-navy-50); box-shadow: inset 0 0 0 1px var(--rb-navy); }
+
+/* toast + modal */
+.toast { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--ad-ink); color: #fff; border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.8rem; box-shadow: 0 10px 24px -10px rgba(0,0,0,0.4); }
+.toast.ok { background: #16321F; }
+.toast.ok .dotok { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--ok); }
+.toast.err { background: #3A1515; }
+.toast.err .doterr { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--bad); }
+.modal { max-width: 22rem; background: #fff; border-radius: 12px; padding: 1.3rem; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.4); display: grid; gap: 0.8rem; }
+.modal h4 { font-size: 1rem; }
+.modal p { font-size: 0.82rem; color: var(--ad-muted); }
+.modal .mrow { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 0.4rem; }
+
+@media (max-width: 1200px) {
+  .admin { grid-template-columns: minmax(0,1fr); }
+  .asb { flex-direction: row; flex-wrap: wrap; }
+  .kpis, .panel-row, .g3, .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 960px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-inline: 1rem; gap: 0; }
+  .rail { display: none; }
+  .g2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .sec-head { grid-template-columns: minmax(0, 1fr); }
+  .kpis, .panel-row, .g3, .g4 { grid-template-columns: minmax(0,1fr); }
+}
+</style>
+
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0">
+  <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></g></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></g></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></g></symbol>
+  <symbol id="i-pill" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="4" rx="1"/><path d="M7 6v13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/><path d="M12 10v5M9.5 12.5h5"/></g></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13c-3 0-6 3-6 5.5 0 1.5 1.2 2.5 2.7 2.5 1.2 0 2.1-.6 3.3-.6s2.1.6 3.3.6c1.5 0 2.7-1 2.7-2.5 0-2.5-3-5.5-6-5.5z"/><circle cx="5" cy="10.5" r="1.8"/><circle cx="9.3" cy="5.5" r="1.8"/><circle cx="14.7" cy="5.5" r="1.8"/><circle cx="19" cy="10.5" r="1.8"/></g></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c1-4 3.5-6 6.5-6s5.5 2 6.5 6"/><circle cx="18" cy="9" r="2.4"/><path d="M15.8 14c2.3.4 3.9 2.2 4.7 5"/></g></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12.2V4.5A1.5 1.5 0 0 1 4.5 3h7.7a1.5 1.5 0 0 1 1.1.4l8 8a1.5 1.5 0 0 1 0 2.2l-7.7 7.7a1.5 1.5 0 0 1-2.2 0l-8-8a1.5 1.5 0 0 1-.4-1.1z"/><circle cx="8" cy="8" r="1.5"/></g></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="13" height="10"/><path d="M14 10h4l4 4v2h-8z"/><circle cx="6" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></g></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></g></symbol>
+  <symbol id="i-staff" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></g></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/></g></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M18.4 5.6l-2 2M7.6 16.4l-2 2M18.4 18.4l-2-2M7.6 7.6l-2-2"/></g></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 9 9 0 0 1-3.6-.7L3 21l1.8-4.9A8.4 8.4 0 1 1 21 11.5z"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></g></symbol>
+</svg>
+
+<div class="shell">
+<nav class="rail" aria-label="Document sections">
+  <div class="brand"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</div>
+  <div class="doctype">Admin dashboard &amp; RBAC</div>
+  <ol>
+    <li><a href="#rbac"><span>00</span><span>Role &amp; permission model</span></a></li>
+    <li><a href="#matrix"><span>01</span><span>Permission matrix</span></a></li>
+    <li><a href="#shell"><span>02</span><span>Shell &amp; navigation</span></a></li>
+    <li><a href="#overview"><span>03</span><span>Dashboard overview</span></a></li>
+    <li><a href="#ops"><span>04</span><span>Orders, catalogue, inventory</span></a></li>
+    <li><a href="#queues"><span>05</span><span>Prescription &amp; vet queues</span></a></li>
+    <li><a href="#customers"><span>06</span><span>Customers &amp; promotions</span></a></li>
+    <li><a href="#delivery"><span>07</span><span>Delivery &amp; financial</span></a></li>
+    <li><a href="#staff"><span>08</span><span>Staff &amp; role builder</span></a></li>
+    <li><a href="#analytics"><span>09</span><span>Analytics &amp; settings</span></a></li>
+    <li><a href="#open"><span>10</span><span>Assumptions &amp; open items</span></a></li>
+  </ol>
+  <p class="meta">Version 1.0 · October 2026<br>Companion to the <a href="technical-architecture.html">technical architecture</a> and <a href="pharmacy-vet-compliance.html">compliance</a> docs</p>
+</nav>
+
+<main>
+<header class="cover">
+  <p class="eyebrow">Admin dashboard &amp; RBAC · v1.0</p>
+  <h1>Robakeye admin</h1>
+  <p>One staff product, eight default roles, and a permission system granular enough that a superadmin can build a ninth role from scratch without a developer. Dark sidebar, dense light content — the Shopify/Linear register, not the customer storefront's.</p>
+  <dl>
+    <div><dt>Default roles</dt><dd>8, plus custom</dd></div>
+    <div><dt>Permission flags</dt><dd>18, each with a branch-scope modifier</dd></div>
+    <div><dt>Modules</dt><dd>13</dd></div>
+  </dl>
+</header>
+
+<!-- ============================================================ 00 -->
+<section id="rbac">
+  <div class="sec-head"><div class="tab">00</div><div><h2>Role &amp; permission model</h2><p>Permissions are the real unit. A role is just a named, reusable bundle of them — which is what makes a custom role possible without new code.</p></div></div>
+
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Role</th><th>Branch scope</th><th>Core access</th></tr></thead>
+      <tbody>
+        <tr><td><b>Superadmin</b></td><td>All branches</td><td>Everything, including staff management, custom roles, system settings, and the full audit log.</td></tr>
+        <tr><td><b>Branch Manager</b></td><td>Assigned branch only</td><td>Full operational access to their branch — inventory, orders, staff schedule, branch-level financials and promotions within superadmin-set limits.</td></tr>
+        <tr><td><b>Pharmacist</b></td><td>Assigned branch, or all (configurable)</td><td>Prescription review queue, pharmacy catalogue, pharmacist chat. No vet, no supermarket, no financials, no staff management.</td></tr>
+        <tr><td><b>Veterinary Staff</b></td><td>Flagship only (the only branch with a clinic)</td><td>Appointment calendar, pet profiles, vet product catalogue, post-visit medical records. No pharmacy prescriptions, no supermarket inventory.</td></tr>
+        <tr><td><b>Inventory Manager</b></td><td>Assigned branch only</td><td>Full CRUD on their branch's stock, stock transfer requests. No financial or sales reports.</td></tr>
+        <tr><td><b>Cashier / Fulfillment</b></td><td>Assigned branch only</td><td>View and advance order status. No price/discount edits, no visibility into other staff's performance.</td></tr>
+        <tr><td><b>Customer Service Rep</b></td><td>All branches</td><td>Support tickets, read-only order lookup, refunds up to a configured cap, customer communication history.</td></tr>
+        <tr><td><b>Delivery Coordinator</b></td><td>All branches (or assigned, per business need)</td><td>Delivery queue, rider assignment, third-party dispatch, delivery exception handling.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">Permission flags <small>the actual unit of access</small></h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Operations</h4><ul><li><code>view_orders</code></li><li><code>update_order_status</code></li><li><code>edit_prices_discounts</code></li><li><code>manage_catalogue</code></li><li><code>edit_inventory</code></li><li><code>approve_stock_transfers</code></li><li><code>approve_stock_writeoffs</code></li></ul></div>
+    <div class="card"><h4>Pharmacy &amp; vet</h4><ul><li><code>approve_prescriptions</code></li><li><code>manage_pharmacy_catalogue</code></li><li><code>access_pharmacist_chat</code></li><li><code>manage_vet_calendar</code></li><li><code>update_pet_records</code></li></ul></div>
+    <div class="card"><h4>Customer, growth, admin</h4><ul><li><code>view_customers</code></li><li><code>manage_support_tickets</code></li><li><code>issue_refunds</code> <span style="color:var(--muted)">(+ a numeric cap)</span></li><li><code>manage_promotions</code></li><li><code>manage_delivery_queue</code></li><li><code>view_financial_reports</code></li><li><code>manage_staff</code></li><li><code>create_custom_roles</code></li><li><code>view_audit_log</code></li><li><code>manage_system_settings</code></li></ul></div>
+  </div>
+
+  <div class="note wide" style="margin-top:1rem"><strong>Branch scope is a modifier, not a flag per branch.</strong> The brief's example names <code>can_access_branch_X_only</code> — written that way, every new branch needs a new flag. Instead, each role assignment carries one scope value: <code>all_branches</code> or <code>assigned_branch</code>, alongside which specific branch(es) that assignment covers. Adding a 4th branch (technical architecture doc, §08) touches zero permission-flag definitions.</div>
+
+  <h3 class="sub">How a permission check actually runs</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>At request time</h4><ul><li>The API Gateway's RBAC guard (technical architecture doc, §01) checks the caller's <code>role_assignments</code> for the specific flag the endpoint requires, plus branch scope if the resource is branch-owned.</li><li>A denied request is logged, not just silently rejected — a pattern of denied attempts is itself a signal worth seeing.</li></ul></div>
+    <div class="card"><h4>Immediately on change</h4><ul><li>Permission edits invalidate that staff member's cached permission set right away — enforced via a short-TTL Redis-cached permission snapshot per session, re-checked on next request, not a stale JWT claim trusted until it expires.</li><li>A role change mid-shift (e.g. a cashier promoted to branch manager) takes effect on their very next action, not at next login.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 01 -->
+<section id="matrix">
+  <div class="sec-head"><div class="tab">01</div><div><h2>Permission matrix</h2><p>Every default role against every permission flag. <span class="tag" style="background:var(--rb-success-50);color:var(--ok)">●</span> full access, <span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">◐</span> capped or conditional, blank = no access.</p></div></div>
+
+  <div class="pm-wrap">
+    <table class="pm">
+      <thead><tr><th>Permission</th><th>Superadmin</th><th>Branch Mgr</th><th>Pharmacist</th><th>Vet Staff</th><th>Inventory Mgr</th><th>Cashier</th><th>CS Rep</th><th>Delivery Coord.</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td>Orders</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>view_orders</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="part">◐ read-only</td><td class="part">◐ delivery fields</td></tr>
+        <tr><td>update_order_status</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="part">◐ delivery stage only</td></tr>
+        <tr><td>edit_prices_discounts</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr class="grp"><td>Catalogue &amp; inventory</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>manage_catalogue</td><td class="yes">●</td><td class="part">◐ branch overrides</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>edit_inventory</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>approve_stock_transfers</td><td class="yes">●</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="part">◐ initiate only</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>approve_stock_writeoffs</td><td class="yes">●</td><td class="part">◐ above threshold</td><td class="no">—</td><td class="no">—</td><td class="part">◐ below threshold</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr class="grp"><td>Pharmacy &amp; veterinary</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>approve_prescriptions</td><td class="yes">●</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>manage_pharmacy_catalogue</td><td class="yes">●</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>access_pharmacist_chat</td><td class="yes">●</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>manage_vet_calendar</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>update_pet_records</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr class="grp"><td>Customer &amp; growth</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>view_customers</td><td class="yes">●</td><td class="part">◐ branch orders only</td><td class="no">—</td><td class="part">◐ pet owners only</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td></tr>
+        <tr><td>manage_support_tickets</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td><td class="no">—</td></tr>
+        <tr><td>issue_refunds</td><td class="yes">●</td><td class="part">◐ branch cap</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="part">◐ ₦10,000 cap <span class="sample">sample</span></td><td class="no">—</td></tr>
+        <tr><td>manage_promotions</td><td class="yes">●</td><td class="part">◐ within HQ limits</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>manage_delivery_queue</td><td class="yes">●</td><td class="part">◐ branch orders</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">●</td></tr>
+        <tr class="grp"><td>Administration</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>view_financial_reports</td><td class="yes">●</td><td class="part">◐ branch only</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>manage_staff</td><td class="yes">●</td><td class="part">◐ branch staff only</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>create_custom_roles</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>view_audit_log</td><td class="yes">●</td><td class="part">◐ branch actions</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+        <tr><td>manage_system_settings</td><td class="yes">●</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:1rem">This table is the default seed data for the 8 built-in roles — it's editable by a superadmin through the role builder in §08, not hardcoded. A custom role (e.g. "Senior Cashier" = Cashier's flags plus a capped <code>issue_refunds</code>) is a new row a superadmin builds by checking boxes, never a code change.</p>
+</section>
+
+<!-- ============================================================ 02 -->
+<section id="shell">
+  <div class="sec-head"><div class="tab">02</div><div><h2>Shell &amp; navigation</h2><p>Dark collapsible sidebar, icon plus label, grouped by domain. A role only ever sees the sections it has at least one permission in — hidden, not greyed out.</p></div></div>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>admin.robakeye.com</span></div>
+    <div class="admin">
+      <aside class="asb">
+        <div class="org"><span class="m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye<small>Admin</small></div>
+        <a class="on"><svg><use href="#i-home"/></svg>Overview</a>
+        <div class="sec">Pharmacy</div>
+        <a><svg><use href="#i-pill"/></svg>Prescriptions<span style="margin-left:auto;background:var(--rb-amber);color:var(--rb-navy);border-radius:999px;font:700 0.62rem var(--f-mono);padding:0 0.35rem">7</span></a>
+        <a><svg><use href="#i-chat"/></svg>Pharmacist chat</a>
+        <div class="spacer"></div>
+        <div class="who"><span class="av">TA</span><div><b>Tolu Adebayo</b><span>Pharmacist · Branch A</span></div></div>
+      </aside>
+      <div class="acontent">
+        <div class="atop"><div><h3>Good afternoon, Tolu</h3><div class="sub">Here's what's waiting on you today <span class="sample" style="margin-left:0.4rem">sample session</span></div></div></div>
+        <div class="anote">This sidebar is shown exactly as a <b>Pharmacist</b> sees it: Overview, Prescriptions, Pharmacist chat — nothing else. Orders, Inventory, Appointments, Customers, Staff &amp; roles and every other section are absent, not greyed out, because this role holds none of the permission flags that would unlock them. Compare against the Superadmin's much fuller sidebar in §03, and the full navigation table below for every role in between.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">Full navigation tree <small>who sees what</small></h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Nav section</th><th>Visible to</th></tr></thead>
+      <tbody>
+        <tr><td>Overview</td><td>Everyone — content within adapts to role (§03)</td></tr>
+        <tr><td>Orders</td><td>Superadmin, Branch Manager, Cashier, Customer Service (read-only)</td></tr>
+        <tr><td>Catalogue</td><td>Superadmin, Branch Manager</td></tr>
+        <tr><td>Inventory</td><td>Superadmin, Branch Manager, Inventory Manager</td></tr>
+        <tr><td>Prescriptions</td><td>Superadmin, Pharmacist</td></tr>
+        <tr><td>Pharmacist chat</td><td>Superadmin, Pharmacist</td></tr>
+        <tr><td>Appointments</td><td>Superadmin, Veterinary Staff</td></tr>
+        <tr><td>Customers</td><td>Superadmin, Branch Manager (branch-scoped), Customer Service, Veterinary Staff (pet owners only, via pet profile)</td></tr>
+        <tr><td>Promotions</td><td>Superadmin, Branch Manager (within HQ limits)</td></tr>
+        <tr><td>Delivery</td><td>Superadmin, Delivery Coordinator, Branch Manager (branch-scoped)</td></tr>
+        <tr><td>Payments &amp; reports</td><td>Superadmin, Branch Manager (branch-scoped)</td></tr>
+        <tr><td>Staff &amp; roles</td><td>Superadmin, Branch Manager (branch staff only, no role-builder access)</td></tr>
+        <tr><td>Analytics</td><td>Superadmin, Branch Manager (branch-scoped)</td></tr>
+        <tr><td>Settings</td><td>Superadmin only</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">Interaction patterns <small>used across every module below</small></h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Toasts</h4>
+      <div class="grid" style="gap:0.5rem;margin-top:0.5rem">
+        <div class="toast ok"><span class="dotok"></span>Order status updated to Preparing</div>
+        <div class="toast err"><span class="doterr"></span>Couldn't issue refund — exceeds your ₦10,000 limit</div>
+      </div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-top:0.6rem">Every write action confirms or explains failure in-place, bottom-right, auto-dismissing after 4s except errors, which stay until dismissed.</p>
+    </div>
+    <div class="card"><h4>Confirmation modals</h4>
+      <div class="modal" style="margin-top:0.5rem;transform:scale(0.92);transform-origin:top left">
+        <h4>Deactivate this product?</h4>
+        <p>"Paracetamol 500mg ×24" will be hidden from all branches immediately. This doesn't affect existing orders.</p>
+        <div class="mrow"><span class="abtn sec">Cancel</span><span class="abtn danger">Deactivate</span></div>
+      </div>
+    </div>
+    <div class="card"><h4>Tablet responsiveness</h4><ul><li>Sidebar collapses to icon-only below 1200px, expandable on tap — branch managers on an in-store tablet keep full width for data tables.</li><li>Data tables scroll horizontally within their own container rather than breaking the page layout.</li><li>Touch targets on action buttons stay ≥40px even in the dense table rows.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 03 -->
+<section id="overview">
+  <div class="sec-head"><div class="tab">03</div><div><h2>Dashboard overview</h2><p>The home screen. KPI cards lead, and — like the sidebar — which cards appear depends on the viewer's role.</p></div></div>
+
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>admin.robakeye.com/overview</span></div>
+    <div class="admin">
+      <aside class="asb" style="width:13.5rem">
+        <div class="org"><span class="m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye<small>Admin</small></div>
+        <a class="on"><svg><use href="#i-home"/></svg>Overview</a>
+        <div class="sec">Operations</div>
+        <a><svg><use href="#i-cart"/></svg>Orders</a>
+        <a><svg><use href="#i-box"/></svg>Catalogue</a>
+        <a><svg><use href="#i-box"/></svg>Inventory</a>
+        <div class="sec">Pharmacy</div>
+        <a><svg><use href="#i-pill"/></svg>Prescriptions</a>
+        <a><svg><use href="#i-chat"/></svg>Pharmacist chat</a>
+        <div class="sec">Veterinary</div>
+        <a><svg><use href="#i-paw"/></svg>Appointments</a>
+        <div class="sec">Growth</div>
+        <a><svg><use href="#i-users"/></svg>Customers</a>
+        <a><svg><use href="#i-tag"/></svg>Promotions</a>
+        <div class="sec">Fulfilment</div>
+        <a><svg><use href="#i-truck"/></svg>Delivery</a>
+        <div class="sec">Admin</div>
+        <a><svg><use href="#i-card"/></svg>Payments &amp; reports</a>
+        <a><svg><use href="#i-staff"/></svg>Staff &amp; roles</a>
+        <a><svg><use href="#i-chart"/></svg>Analytics</a>
+        <a><svg><use href="#i-gear"/></svg>Settings</a>
+        <div class="spacer"></div>
+        <div class="who"><span class="av">AO</span><div><b>Amara Okonkwo</b><span>Superadmin</span></div></div>
+      </aside>
+      <div class="acontent">
+        <div class="atop">
+          <div><h3>Overview</h3><div class="sub">All branches · Today, 12 Oct 2026</div></div>
+          <div class="atoolbar"><span class="chip on">All branches</span><span class="chip">Ajadi</span><span class="chip">Ojoo</span><span class="chip">Sheu</span></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><span class="l">Today's revenue</span><span class="v">₦842,600</span><span class="d up">↑ 12% vs. yesterday</span></div>
+          <div class="kpi"><span class="l">Orders pending</span><span class="v">23</span><span class="d warn">6 over SLA</span></div>
+          <div class="kpi"><span class="l">Low stock alerts</span><span class="v">11</span><span class="d warn">4 pharmacy items</span></div>
+          <div class="kpi"><span class="l">Rx approvals pending</span><span class="v">7</span><span class="d warn">oldest 38 min</span></div>
+          <div class="kpi"><span class="l">Vet appointments today</span><span class="v">9</span><span class="d up">2 starting within the hour</span></div>
+        </div>
+        <div class="panel-row">
+          <div class="apanel">
+            <h4>Revenue — last 7 days <span class="chip" style="margin-left:0.5rem;font-size:0.66rem">Daily ▾</span></h4>
+            <div class="chart"><div style="height:55%"></div><div style="height:68%"></div><div style="height:48%"></div><div style="height:72%"></div><div style="height:60%"></div><div style="height:85%"></div><div style="height:100%"></div></div>
+            <div class="chart-legend"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Today</span></div>
+          </div>
+          <div class="apanel">
+            <h4>Recent activity</h4>
+            <div class="feed">
+              <div class="f-row"><span class="f-dot"></span><div>Rx RQ-10482 approved by Tolu A. <div class="f-time">2 min ago</div></div></div>
+              <div class="f-row"><span class="f-dot" style="background:var(--rb-amber)"></span><div>Order #0451 marked Out for delivery <div class="f-time">6 min ago</div></div></div>
+              <div class="f-row"><span class="f-dot" style="background:var(--rb-lavender-deep)"></span><div>Vet appt booked — Bingo, vaccination <div class="f-time">14 min ago</div></div></div>
+              <div class="f-row"><span class="f-dot" style="background:var(--bad)"></span><div>Stock write-off logged — 12 units, Ajadi <div class="f-time">22 min ago</div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="apanel">
+          <h4>Top-selling products this week</h4>
+          <table class="atable">
+            <thead><tr><th>Product</th><th>Branch</th><th>Units sold</th><th>Revenue</th></tr></thead>
+            <tbody>
+              <tr><td>Paracetamol 500mg ×24</td><td>All</td><td class="num">312</td><td class="num">₦374,400</td></tr>
+              <tr><td>Long-grain rice, 5kg</td><td>Ajadi</td><td class="num">98</td><td class="num">₦1,127,000</td></tr>
+              <tr><td>Adult dog food, 3kg</td><td>Sheu</td><td class="num">41</td><td class="num">₦401,800</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">A Branch Manager sees this same layout with the branch toolbar locked to their own branch (no "All branches" option), and the KPI row drops <em>Rx approvals pending</em> and <em>Vet appointments today</em> if their branch doesn't carry those services. All figures above are <span class="sample">sample data</span>.</p>
+</section>
+
+<!-- ============================================================ 04 -->
+<section id="ops">
+  <div class="sec-head"><div class="tab">04</div><div><h2>Orders, catalogue &amp; inventory</h2><p>The three modules staff touch most, sharing one table pattern: search, filter chips, sortable columns, pagination, row actions.</p></div></div>
+
+  <h3 class="sub">Order management</h3>
+  <div class="frame">
+    <div class="acontent" style="padding:1.1rem">
+      <div class="atop"><h3 style="font-size:1rem">All orders</h3><div class="atoolbar"><span class="asearch">🔍 Search order #, customer…</span><span class="chip on">Status: Preparing</span><span class="chip">Branch ▾</span><span class="chip">Vertical ▾</span><span class="chip">Date range ▾</span><span class="abtn sec">Export CSV</span></div></div>
+      <table class="atable">
+        <thead><tr><th>Order</th><th>Customer</th><th>Branch</th><th>Vertical</th><th>Status</th><th>Payment</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr><td>#RPL-0451</td><td>sample name</td><td>Ajadi</td><td>Supermarket</td><td><span class="pill" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Preparing</span></td><td><span class="pill" style="background:var(--rb-success-50);color:var(--ok)">Paid</span></td><td class="num">₦23,716</td></tr>
+          <tr><td>#RPL-0452</td><td>sample name</td><td>Sheu</td><td>Veterinary</td><td><span class="pill" style="background:var(--rb-navy-50);color:var(--rb-navy)">Confirmed</span></td><td><span class="pill" style="background:var(--rb-success-50);color:var(--ok)">Paid</span></td><td class="num">₦9,800</td></tr>
+          <tr><td>#RPL-0453</td><td>sample name</td><td>Ajadi</td><td>Pharmacy</td><td><span class="pill" style="background:#E4E4E9;color:var(--muted)">Ready for pickup</span></td><td><span class="pill" style="background:var(--rb-success-50);color:var(--ok)">Paid</span></td><td class="num">₦1,200</td></tr>
+        </tbody>
+      </table>
+      <div class="pager"><span>Showing 1–3 of 214</span><span>‹ Page 1 of 72 ›</span></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:0.85rem">Order detail (not pictured) opens as a side panel: itemised lines, customer info, delivery tracking map, status buttons matching the order's actual next valid states only (no skipping from Confirmed straight to Delivered), and an internal notes field visible to staff only, never the customer.</p>
+
+  <h3 class="sub">Product catalogue</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>Per-product editor</h4><ul><li>Core fields plus a per-branch override table: same SKU, different stock and price per branch, inline-editable.</li><li>Prescription-required toggle (and, per the compliance doc, a third Controlled state) directly on this screen — classification lives where the product itself is edited.</li><li>Image upload with drag-reorder for the gallery.</li><li>Low-stock threshold, configurable per product, defaulting to a category-level setting.</li></ul></div>
+    <div class="card"><h4>Bulk upload</h4><ul><li>CSV/Excel template download with the exact column headers the importer expects.</li><li>Upload runs a dry-run validation pass first — shows row-level errors (bad category, missing price) before committing anything.</li><li>Category management: nested tree with drag-to-reorder, mirroring the storefront's category structure from the IA spec.</li></ul></div>
+  </div>
+
+  <h3 class="sub">Inventory &amp; stock</h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Per-branch stock dashboard</h4><ul><li>Table of every SKU at the viewer's branch(es), stock level, threshold, and a visual low/critical indicator.</li></ul></div>
+    <div class="card"><h4>Stock transfers</h4><ul><li>Sending branch requests, receiving branch confirms before stock moves in the system — matches the brief's two-sided approval exactly.</li></ul></div>
+    <div class="card"><h4>Expiry tracking <span class="tag" style="background:var(--rb-alert-50);color:var(--bad);margin-left:0.3rem">pharmacy-critical</span></h4><ul><li>Automated 90/60/30-day banners on the inventory dashboard, plus a dedicated "Expiring soon" filter view.</li><li>Write-offs for expired stock require a reason code and, above a configurable value threshold, manager approval.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 05 -->
+<section id="queues">
+  <div class="sec-head"><div class="tab">05</div><div><h2>Prescription &amp; veterinary queues</h2><p>Fully specified already in the <a href="pharmacy-vet-compliance.html">compliance document</a> (§02, §06, §09) — this section places those same screens inside the dashboard shell and adds the status-tab and audit-trail chrome this brief asks for explicitly.</p></div></div>
+
+  <div class="frame">
+    <div class="acontent" style="padding:1.1rem">
+      <div class="atop"><h3 style="font-size:1rem">Prescription review</h3><div class="atoolbar"><span class="chip on">Pending · 7</span><span class="chip">In review · 2</span><span class="chip">Approved · 184</span><span class="chip">Rejected · 19</span></div></div>
+      <div class="anote">The per-line approve/query/reject screen, the reviewing-pharmacist and Superintendent Pharmacist auto-attachment, and the append-only <code>prescription_audit</code> trail are all specified in the compliance doc's §02 wireframe — reused here unchanged. What's new at the dashboard level is the four-tab queue view above (Pending / In review / Approved / Rejected) and an <b>Audit trail</b> tab per request showing every decision's timestamp, reviewer, and reason in one read-only timeline, for exactly the legal-defence purpose that document's §00 explains.</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:0.85rem">The veterinary appointments module follows the same pattern: the compliance doc's §06 admin calendar wireframe (per-vet-staff availability, working-hours self-management, no-show analytics) sits inside this same shell, reachable from the <b>Appointments</b> nav item, with day/week/month view toggles and a reschedule/cancel action on each booking that re-runs the slot-availability check rather than blindly overwriting it.</p>
+</section>
+
+<!-- ============================================================ 06 -->
+<section id="customers">
+  <div class="sec-head"><div class="tab">06</div><div><h2>Customers &amp; promotions</h2><p>One customer record pulling together every vertical they've touched; promotions that a non-developer can actually ship.</p></div></div>
+
+  <h3 class="sub">Customer profile</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>At a glance</h4><ul><li>Name, contact, join date, lifetime value, loyalty points balance.</li><li>Saved addresses, payment methods on file (tokens only — technical architecture doc §07).</li></ul></div>
+    <div class="card"><h4>Cross-vertical history, one scroll</h4><ul><li>Order history across all three verticals, not three separate tabs.</li><li>Prescription request history, linking into the compliance queue's own record.</li><li>Pet profiles, each expandable to its visit history.</li><li>Support ticket history and manual account actions: suspend, add store credit, add an internal note.</li></ul></div>
+  </div>
+
+  <h3 class="sub">Promotions &amp; combo deals</h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Promo codes</h4><ul><li>Percentage or fixed, minimum spend, usage limit, date range, applicable products/categories — matches the Order calculation engine's promo step exactly (technical architecture doc §04).</li></ul></div>
+    <div class="card"><h4>Combo/bundle deals</h4><ul><li>Pick 2+ products, set a bundle price or a discount — feeds the calculation engine's combo-discount step, applied before any promo code.</li></ul></div>
+    <div class="card"><h4>Homepage banner scheduling</h4><ul><li>A superadmin or branch manager edits the "Baby Care Combo — Save 15%" banner (homepage spec §07) directly — headline, end-time for the countdown, and the linked combo — with no developer involvement, exactly as the brief specifies.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 07 -->
+<section id="delivery">
+  <div class="sec-head"><div class="tab">07</div><div><h2>Delivery &amp; financial reports</h2><p>Where the courier abstraction from the technical architecture doc becomes a screen, and where the money gets reconciled.</p></div></div>
+
+  <h3 class="sub">Delivery management</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>Active deliveries</h4><ul><li>List/map toggle of every in-flight delivery, filterable by branch and provider.</li><li>Assign to an in-house rider or trigger a third-party courier's <code>createDelivery()</code> call (technical architecture doc §05) from the same screen — the staff member doesn't need to know which provider is behind the button.</li><li>Exceptions (failed delivery, address issue) surface as a distinct status, routed to Customer Service.</li></ul></div>
+    <div class="card"><h4>Provider performance &amp; fee rules</h4><ul><li>On-time rate and average cost per provider, side by side — the data that justifies which provider gets offered first at checkout.</li><li>Delivery fee tiers by distance, configurable per branch, feeding the calculation engine directly (technical architecture doc §04).</li></ul></div>
+  </div>
+
+  <h3 class="sub">Payments &amp; financial reports</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>Transaction log</h4><ul><li>Synced with Paystack via the webhook (technical architecture doc §03/§05) — a reconciliation view flags any order marked paid locally with no matching Paystack reference, or vice versa.</li><li>Refund log, each entry showing who issued it and against which limit (the Customer Service ₦10,000 cap, or a superadmin override).</li></ul></div>
+    <div class="card"><h4>Revenue reports</h4><ul><li>Filterable by branch, vertical, date range, payment method — same filter chip pattern as every other table in this product.</li><li>CSV/PDF export for the business's accounting process.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 08 -->
+<section id="staff">
+  <div class="sec-head"><div class="tab">08</div><div><h2>Staff management &amp; the role builder</h2><p>The brief's explicit ask: a visual permission grid a superadmin can actually use, not a JSON file someone edits by hand.</p></div></div>
+
+  <div class="frame">
+    <div class="acontent" style="padding:1.1rem">
+      <div class="atop"><h3 style="font-size:1rem">New role — "Senior Cashier"</h3><div class="atoolbar"><span class="abtn sec">Cancel</span><span class="abtn pri">Save role</span></div></div>
+      <div class="anote">Starts from a copy of <b>Cashier</b>, then adds one permission — this is the custom-role pattern the brief asks for: combine existing flags, don't write a role from a blank slate each time.</div>
+      <div class="rb-grid">
+        <label class="rb-cell on"><input type="checkbox" checked>view_orders <span style="margin-left:auto;color:var(--ad-muted);font-size:0.64rem">from Cashier</span></label>
+        <label class="rb-cell on"><input type="checkbox" checked>update_order_status <span style="margin-left:auto;color:var(--ad-muted);font-size:0.64rem">from Cashier</span></label>
+        <label class="rb-cell"><input type="checkbox">edit_prices_discounts</label>
+        <label class="rb-cell"><input type="checkbox">manage_catalogue</label>
+        <label class="rb-cell"><input type="checkbox">edit_inventory</label>
+        <label class="rb-cell on"><input type="checkbox" checked>issue_refunds <span style="margin-left:auto;color:var(--ad-muted);font-size:0.68rem">cap: ₦5,000</span></label>
+        <label class="rb-cell"><input type="checkbox">view_financial_reports</label>
+        <label class="rb-cell"><input type="checkbox">manage_staff</label>
+        <label class="rb-cell"><input type="checkbox">view_audit_log</label>
+      </div>
+      <div class="atoolbar" style="margin-top:0.8rem"><span style="font-size:0.78rem;color:var(--ad-muted)">Branch scope:</span><span class="chip on">Assigned branch only</span><span class="chip">All branches</span></div>
+    </div>
+  </div>
+
+  <h3 class="sub">Staff directory</h3>
+  <div class="grid g2 wide">
+    <div class="card"><h4>Directory &amp; accounts</h4><ul><li>Searchable list: name, role, branch, status (active/suspended), last login.</li><li>Add/edit/deactivate — deactivation is immediate per the §00 session-revalidation rule, not "effective next login."</li></ul></div>
+    <div class="card"><h4>Audit &amp; schedule</h4><ul><li>Per-staff activity log: logins, and every write action they took, each linking to the record it changed.</li><li>Basic shift/schedule entry, primarily to feed vet staff availability (compliance doc §06) rather than a full workforce-management tool.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:1rem"><strong>Who can touch the role builder.</strong> Only <code>create_custom_roles</code> — Superadmin by default — reaches this screen. A Branch Manager's Staff &amp; roles view lets them add/deactivate staff at their own branch and assign <em>existing</em> roles, but never define a new one or edit what a role's permissions are.</p>
+</section>
+
+<!-- ============================================================ 09 -->
+<section id="analytics">
+  <div class="sec-head"><div class="tab">09</div><div><h2>Analytics &amp; system settings</h2><p>Insight for everyone with reporting access; configuration for the superadmin alone.</p></div></div>
+
+  <h3 class="sub">Analytics &amp; insights</h3>
+  <div class="grid g4 wide">
+    <div class="card"><h4>Best-sellers</h4><ul><li>Per branch and per vertical.</li></ul></div>
+    <div class="card"><h4>Retention</h4><ul><li>Repeat-purchase rate, cohort view.</li></ul></div>
+    <div class="card"><h4>Cart abandonment</h4><ul><li>Carts created vs. orders placed, by vertical.</li></ul></div>
+    <div class="card"><h4>Peak-time heatmap</h4><ul><li>Order volume by hour/day — a direct staffing input.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:1rem">One more metric the brief names specifically: <b>prescription approval turnaround time</b> — the gap between a request entering the queue and its first decision, tracked per pharmacist and as a branch-level service quality KPI. This reuses the same timestamps the compliance doc's audit trail already captures; it's a report over existing data, not a new field to collect.</p>
+
+  <h3 class="sub">System settings <small>superadmin only</small></h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Branch &amp; commerce</h4><ul><li>Branch info: hours, delivery radius, services offered (technical architecture doc §04's per-branch radius setting lives here).</li><li>Tax/VAT configuration per category.</li></ul></div>
+    <div class="card"><h4>Integrations</h4><ul><li>Delivery partner API credentials (encrypted at rest, per the technical architecture doc §07).</li><li>Paystack keys and webhook configuration.</li></ul></div>
+    <div class="card"><h4>Content</h4><ul><li>SMS/email notification templates, editable without a deploy.</li><li>Terms of Service / Privacy Policy content.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="open">
+  <div class="sec-head"><div class="tab">10</div><div><h2>Assumptions &amp; open items</h2><p>Calls made to keep this spec concrete, plus items tied to decisions in the earlier documents.</p></div></div>
+  <ol class="open-items">
+    <li><b>Refund cap defaults</b>The ₦10,000 Customer Service cap and the Branch Manager's "branch cap" are sample figures. Needs real numbers from finance, and whether the cap is a single-transaction limit or a rolling daily/monthly one.</li>
+    <li><b>Pharmacist branch scope default</b>§00 lists Pharmacist as "assigned branch, or all (configurable)" — confirm whether prescription review is centralised (any pharmacist, any branch's queue) or branch-siloed by default; this affects queue-routing logic, not just the permission flag.</li>
+    <li><b>Branch Manager's promotion limits</b>"Within superadmin-set limits" needs the actual limit shape — a discount percentage ceiling, a max combo count, or both.</li>
+    <li><b>Stock write-off approval threshold</b>§04 references a configurable value threshold above which a manager must approve — needs a real ₦ figure from the business.</li>
+    <li><b>Delivery Coordinator's branch scope</b>Modelled as all-branches by default in §00 since delivery often crosses branch boundaries at the dispatch level — confirm whether the business actually wants branch-siloed coordinators instead.</li>
+    <li><b>Session-revalidation mechanism</b>§00 specifies immediate effect on permission change via a short-TTL cached permission snapshot — needs a concrete TTL value from engineering (seconds, not minutes, if "immediately" is to be taken literally).</li>
+  </ol>
+</section>
+</main>
+</div>

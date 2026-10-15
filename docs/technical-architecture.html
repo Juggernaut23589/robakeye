@@ -1,0 +1,618 @@
+<title>Robakeye Technical Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;600;700;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap">
+<style>
+/* Layout: engineering spec, same shell as the IA and homepage docs. Diagrams
+   (architecture, ERD, pipeline) are mermaid — pinned to a fixed light
+   container regardless of theme, since mermaid's default theme assumes a
+   light background for its lines and text (see the IA spec for the bug this
+   avoids). Endpoint tables use method-colour badges; pseudocode uses real
+   <pre><code> blocks, not styled divs. */
+:root {
+  --rb-navy: #1B1E6D; --rb-blue: #2F38EB; --rb-amber: #F19428; --rb-amber-deep: #A65800;
+  --rb-lavender-mist: #F4F1FD; --rb-lavender: #C8C1F1; --rb-lavender-deep: #5A4CB0;
+  --rb-success: #1E7F46; --rb-alert: #C62828;
+  --rb-n50: #FAFAFA; --rb-n200: #E4E4E9; --rb-n400: #A0A0AA; --rb-n600: #5C5C66; --rb-n900: #1A1A1A;
+  --rb-navy-50: #EEEFF8; --rb-amber-50: #FEF3E6; --rb-success-50: #E8F4EC; --rb-alert-50: #FCEBEB;
+
+  --bg: #F6F4FC; --surface: #FFFFFF; --ink: #1B1C3A; --muted: #5D5C78; --line: #E2DFF0;
+  --accent: #2F38EB; --tab: #1B1E6D; --well: #EFEDF8;
+  --ok: #1E7F46; --warn: #A65800; --bad: #C62828;
+  --get: #1E7F46; --post: #1B1E6D; --patch: #A65800; --delete: #C62828; --put: #5A4CB0;
+
+  --f-display: "Sora", "Work Sans", system-ui, sans-serif;
+  --f-body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --col: 46rem; --wide: 78rem; --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+    --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+    --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+  --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+  --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--f-body); }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--well); padding: 0.1em 0.35em; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.shell { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 3rem; max-width: 98rem; margin: 0 auto; padding-inline: 2rem; }
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; height: 100vh; padding-block: 2rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; }
+.rail .brand { display: flex; align-items: center; gap: 0.6rem; font: 700 1.05rem var(--f-display); color: var(--ink); }
+.rail .brand .dot { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--rb-blue); flex: none; display: grid; place-items: center; }
+.rail .brand .dot svg { width: 0.9rem; height: 0.9rem; color: #fff; }
+.rail .doctype { font: 600 0.7rem var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: -0.6rem; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.rail a { display: grid; grid-template-columns: 1.7rem 1fr; padding: 0.32rem 0.5rem; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.87rem; }
+.rail a:hover { background: var(--well); color: var(--ink); }
+.rail a span:first-child { font-family: var(--f-mono); font-size: 0.74rem; padding-top: 0.14rem; }
+.rail .meta { margin-top: auto; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+main { min-width: 0; padding-block: 2rem 6rem; }
+
+.cover { background: var(--rb-navy); color: #fff; border-radius: 18px; padding: clamp(1.5rem, 4vw, 3.5rem); position: relative; overflow: hidden; }
+.cover::after { content: ""; position: absolute; right: -7rem; bottom: -10rem; width: 26rem; height: 26rem; background: var(--rb-blue); clip-path: polygon(50% 0, 100% 32%, 100% 100%, 0 100%, 0 32%); opacity: 0.4; }
+.cover > * { position: relative; z-index: 1; }
+.eyebrow { font: 600 0.75rem/1.2 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cover .eyebrow { color: var(--rb-amber); }
+.cover h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 800; margin-block: 0.7rem 1rem; }
+.cover p { color: #D5D6F2; max-width: 42rem; font-size: 1.05rem; }
+.cover dl { display: flex; flex-wrap: wrap; gap: 0.5rem 2.25rem; margin: 1.75rem 0 0; font-size: 0.85rem; }
+.cover dt { color: #A9ABE0; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.cover dd { margin: 0; font-weight: 500; }
+
+section { padding-block: 5rem 0; scroll-margin-top: 1rem; }
+.sec-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; max-width: var(--col); margin-bottom: 2rem; }
+.tab { width: 3.4rem; height: 3.6rem; background: var(--tab); color: #fff; clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%); display: grid; place-items: end center; padding-bottom: 0.55rem; font: 700 1rem/1 var(--f-mono); }
+.sec-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); letter-spacing: -0.015em; line-height: 1.1; }
+.sec-head p { color: var(--muted); margin-top: 0.6rem; font-size: 1.03rem; }
+.prose { max-width: var(--col); display: grid; gap: 1rem; }
+.prose p, .prose li { max-width: 68ch; }
+h3.sub { font-size: 1.15rem; margin-block: 3rem 1rem; display: flex; gap: 0.6rem; align-items: baseline; }
+h3.sub small { font: 500 0.78rem var(--f-mono); color: var(--muted); }
+.note { max-width: var(--col); background: var(--well); border-radius: var(--r); padding: 1rem 1.25rem; font-size: 0.92rem; }
+.note strong { font-family: var(--f-display); }
+.wide { max-width: var(--wide); }
+.grid { display: grid; gap: 1rem; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; min-width: 0; }
+.card h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+.card ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.92rem; }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+th, td { text-align: left; padding: 0.58rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.68rem/1.3 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--well); }
+tr:last-child td { border-bottom: 0; }
+.tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; font: 600 0.7rem var(--f-body); white-space: nowrap; }
+.sample { display: inline-block; font: 600 0.63rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--rb-amber-deep); background: var(--rb-amber-50); padding: 0.12rem 0.4rem; border-radius: 4px; }
+.open-items { max-width: var(--wide); counter-reset: oi; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.open-items li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0.85rem 1rem 0.85rem 3rem; position: relative; font-size: 0.92rem; }
+.open-items li::before { counter-increment: oi; content: counter(oi); position: absolute; left: 1rem; top: 0.85rem; font: 700 0.85rem var(--f-mono); color: var(--accent); }
+.open-items li b { font-family: var(--f-display); display: block; margin-bottom: 0.15rem; }
+
+/* decision table */
+.dec-row { display: grid; grid-template-columns: 11rem 1fr; gap: 0; border-bottom: 1px solid var(--line); }
+.dec-row:last-child { border-bottom: 0; }
+.dec-row .area { padding: 0.9rem 1rem; font: 700 0.85rem var(--f-display); background: var(--well); }
+.dec-row .pick { padding: 0.9rem 1rem; display: grid; gap: 0.3rem; }
+.dec-row .pick b { font-size: 0.92rem; }
+.dec-row .pick span { font-size: 0.82rem; color: var(--muted); }
+
+/* mermaid — fixed light container, see note at top of <style> */
+pre.mermaid { background: #FDFDFF; border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; max-width: var(--wide); overflow-x: auto; }
+
+/* method badges for endpoint tables */
+.m { display: inline-block; font: 700 0.68rem var(--f-mono); padding: 0.1rem 0.4rem; border-radius: 4px; color: #fff; min-width: 3.3rem; text-align: center; }
+.m-get { background: var(--get); }
+.m-post { background: var(--post); }
+.m-patch { background: var(--patch); }
+.m-delete { background: var(--delete); }
+.m-put { background: var(--put); }
+.auth { font: 600 0.68rem var(--f-mono); color: var(--muted); }
+.auth.pub { color: var(--ok); }
+
+/* pseudocode blocks */
+pre.code { background: #11122B; color: #D9DAF5; border-radius: var(--r); padding: 1.1rem 1.3rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.6; max-width: var(--wide); }
+pre.code .c1 { color: #8C8EC2; } /* comment */
+pre.code .kw { color: #F19428; } /* keyword */
+pre.code .fn { color: #9AA0FF; } /* function/field */
+pre.code .st { color: #5BC98A; } /* string/literal */
+
+.pipeline-stage { display: flex; align-items: center; gap: 0.5rem; }
+.env-card { border-radius: var(--r); border: 1px solid var(--line); overflow: hidden; }
+.env-card .eh { padding: 0.6rem 0.9rem; font: 700 0.8rem var(--f-display); color: #fff; }
+.env-card .eb { padding: 0.8rem 0.9rem; background: var(--surface); font-size: 0.82rem; display: grid; gap: 0.35rem; }
+.env-card .eb div { display: flex; justify-content: space-between; gap: 0.5rem; }
+.env-card .eb dt { color: var(--muted); }
+
+@media (max-width: 1100px) {
+  .g3, .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 960px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-inline: 1rem; gap: 0; }
+  .rail { display: none; }
+  .g2 { grid-template-columns: minmax(0, 1fr); }
+  .dec-row { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 560px) {
+  .sec-head { grid-template-columns: minmax(0, 1fr); }
+  .g3, .g4 { grid-template-columns: minmax(0,1fr); }
+}
+</style>
+
+<div class="shell">
+<nav class="rail" aria-label="Document sections">
+  <div class="brand"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</div>
+  <div class="doctype">Technical architecture</div>
+  <ol>
+    <li><a href="#stack"><span>00</span><span>Stack &amp; decisions</span></a></li>
+    <li><a href="#system"><span>01</span><span>System architecture</span></a></li>
+    <li><a href="#erd"><span>02</span><span>Database ERD</span></a></li>
+    <li><a href="#api"><span>03</span><span>API endpoints</span></a></li>
+    <li><a href="#logic"><span>04</span><span>Core business logic</span></a></li>
+    <li><a href="#integrations"><span>05</span><span>Third-party integrations</span></a></li>
+    <li><a href="#devops"><span>06</span><span>Infrastructure &amp; DevOps</span></a></li>
+    <li><a href="#security"><span>07</span><span>Security &amp; compliance</span></a></li>
+    <li><a href="#scale"><span>08</span><span>Scalability</span></a></li>
+    <li><a href="#open"><span>09</span><span>Assumptions &amp; open items</span></a></li>
+  </ol>
+  <p class="meta">Version 1.0 · October 2026<br>Companion to the <a href="information-architecture.html">IA spec</a> and <a href="homepage-design-spec.html">homepage spec</a></p>
+</nav>
+
+<main>
+<header class="cover">
+  <p class="eyebrow">Technical architecture · v1.0</p>
+  <h1>Robakeye platform</h1>
+  <p>System architecture, database ERD, REST endpoint list and deployment pipeline for a three-branch, three-vertical e-commerce platform. A modular TypeScript monolith by design — split into services only when real traffic, not speculation, asks for it.</p>
+  <dl>
+    <div><dt>Frontend</dt><dd>Next.js 14 App Router</dd></div>
+    <div><dt>Backend</dt><dd>NestJS, modular monolith</dd></div>
+    <div><dt>Data</dt><dd>PostgreSQL + Redis</dd></div>
+  </dl>
+</header>
+
+<!-- ============================================================ 00 -->
+<section id="stack">
+  <div class="sec-head"><div class="tab">00</div><div><h2>Stack &amp; decisions</h2><p>The brief offers real choices at several layers. These are the calls, made for a 3-branch MVP serving customers on mobile data in Ibadan — not for a hypothetical platform at 10x the scale.</p></div></div>
+
+  <div class="tbl wide">
+    <div class="dec-row"><div class="area">Backend API shape</div><div class="pick"><b>REST, versioned (<code>/v1</code>)</b><span>Not a REST+GraphQL hybrid, and not tRPC. The API has to serve the Next.js web app, the admin backend, future mobile apps, and inbound webhooks from Paystack/couriers/WhatsApp — tRPC's whole-stack type-sharing only pays off when every consumer is the same TypeScript codebase, which webhooks and a future native app never are. GraphQL is deferred — see the catalogue note below.</span></div></div>
+    <div class="dec-row"><div class="area">Backend framework</div><div class="pick"><b>NestJS over Laravel</b><span>One language (TypeScript) across frontend and backend halves the context-switching for a small team, and NestJS's module system maps directly onto the Pharmacy / Vet / Supermarket / Order / Payment / Admin boundaries the brief already names.</span></div></div>
+    <div class="dec-row"><div class="area">Catalogue search</div><div class="pick"><b>Postgres full-text + trigram for MVP; Algolia when catalogue size justifies it</b><span>Three branches' worth of SKUs doesn't need a dedicated search cluster on day one. <code>pg_trgm</code> gives typo-tolerant search against the same database, no new infra. Revisit Algolia/Elasticsearch once product count or query volume makes Postgres search slow — the schema doesn't need to change either way.</span></div></div>
+    <div class="dec-row"><div class="area">Hosting (MVP)</div><div class="pick"><b>Vercel (frontend) + Railway (API + Postgres + Redis)</b><span>Both scale by upgrading a plan, not by re-architecting — appropriate for pre-revenue traffic. A move to full AWS (EC2/RDS/S3/CloudFront) is a planned migration, not a rebuild, once volume or a specific compliance need (e.g. data residency) forces it.</span></div></div>
+    <div class="dec-row"><div class="area">Real-time</div><div class="pick"><b>Socket.io, scoped to 3 use cases only</b><span>Order status, delivery tracking, and the pharmacist live-chat fallback. Not a general pub/sub layer — everything else (cart, catalogue) stays request/response with Redis caching.</span></div></div>
+    <div class="dec-row"><div class="area">Monolith vs. microservices</div><div class="pick"><b>Modular monolith, one deploy unit</b><span>NestJS modules give the boundaries; the database gives the schemas per module. Splitting a module into its own service later is a redeploy of that module behind the same API contract, not a rewrite — see section 08.</span></div></div>
+  </div>
+</section>
+
+<!-- ============================================================ 01 -->
+<section id="system">
+  <div class="sec-head"><div class="tab">01</div><div><h2>System architecture</h2><p>One request's path, end to end — from a customer's phone to the database and back, with every external dependency on the way.</p></div></div>
+
+  <pre class="mermaid">
+flowchart TB
+    subgraph Client["Clients"]
+        WEB["Next.js 14 web app\n(SSR/SSG product pages)"]
+        ADMIN["Admin/staff backend\n(Next.js, role-gated)"]
+    end
+
+    CDN["Vercel Edge / CDN\nstatic assets, image optimisation"]
+    WEB --> CDN
+    ADMIN --> CDN
+
+    subgraph API["NestJS API — modular monolith"]
+        GATE["API Gateway module\nauth, rate limiting, request validation"]
+        MOD_PH["Pharmacy module"]
+        MOD_VT["Veterinary module"]
+        MOD_SM["Supermarket module"]
+        MOD_ORD["Order module"]
+        MOD_PAY["Payment module"]
+        MOD_ADM["Admin module"]
+        GATE --> MOD_PH & MOD_VT & MOD_SM & MOD_ORD & MOD_PAY & MOD_ADM
+    end
+    CDN --> GATE
+
+    PG[("PostgreSQL\nprimary data store")]
+    REDIS[("Redis\nsession, cart, cache, rate limits")]
+    SEARCH[("Postgres FTS / Algolia\ncatalogue search")]
+    S3[("S3 / Cloudinary\nproduct images, encrypted Rx uploads")]
+
+    MOD_PH & MOD_VT & MOD_SM & MOD_ORD & MOD_ADM --> PG
+    MOD_PH & MOD_VT & MOD_SM & MOD_ORD --> REDIS
+    MOD_SM & MOD_PH --> SEARCH
+    MOD_PH & MOD_SM --> S3
+
+    subgraph EXT["Third-party"]
+        PAYSTACK["Paystack\ncheckout + webhooks"]
+        DELIV["Delivery adapter\nKwik / Gokada / Fez / in-house"]
+        SMS["Termii / WhatsApp Business API"]
+        MAPS["Google Maps API\ngeocode, distance matrix"]
+        MAIL["SendGrid / Postmark"]
+    end
+    MOD_PAY <--> PAYSTACK
+    MOD_ORD <--> DELIV
+    MOD_ORD & MOD_PH & MOD_VT --> SMS
+    MOD_ORD & MOD_PH --> MAIL
+    GATE --> MAPS
+
+    SOCK["Socket.io gateway\norder status · delivery tracking · pharmacist chat\n(pushes live updates back to WEB)"]
+    MOD_ORD & MOD_PH --> SOCK
+  </pre>
+
+  <h3 class="sub">Component responsibilities</h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Layer</th><th>Responsibility</th></tr></thead>
+      <tbody>
+        <tr><td>API Gateway module</td><td>JWT verification, refresh-token rotation, RBAC guard, global rate limiting, request validation (Zod schemas shared with the frontend via a types package).</td></tr>
+        <tr><td>Pharmacy / Veterinary / Supermarket modules</td><td>Each owns its catalogue slice, branch-inventory reads, and vertical-specific rules — prescription gating (Pharmacy), appointment slots (Veterinary), combo pricing (Supermarket). They don't call each other directly; shared needs (branch lookup, stock check) go through a common Catalogue service all three depend on.</td></tr>
+        <tr><td>Order module</td><td>Cart, the calculation engine (section 04), checkout orchestration, split-fulfilment, status history. The one module every other module's "customer-facing action" ultimately writes through.</td></tr>
+        <tr><td>Payment module</td><td>Paystack integration only — no other module talks to Paystack directly. Verifies webhooks server-side, never trusts a client-reported payment status.</td></tr>
+        <tr><td>Admin module</td><td>Staff auth, RBAC administration, inventory management, the prescription review queue, the vet appointments calendar — the backend half of everything in the IA spec's admin touch points.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 02 -->
+<section id="erd">
+  <div class="sec-head"><div class="tab">02</div><div><h2>Database ERD</h2><p>PostgreSQL, one schema. Every entity from the brief is here, with the relationships that make branch-level inventory and the prescription audit trail actually enforceable at the database layer, not just in application code.</p></div></div>
+
+  <pre class="mermaid">
+erDiagram
+    USERS ||--o{ ADDRESSES : has
+    USERS ||--o{ ORDERS : places
+    USERS ||--o{ PET_PROFILES : owns
+    USERS ||--o{ PRESCRIPTIONS : requests
+    USERS ||--o{ REVIEWS : writes
+    USERS ||--o{ SUPPORT_TICKETS : opens
+    USERS ||--o| STAFF : "is (optional)"
+
+    STAFF }o--|| BRANCHES : "assigned to (nullable for HQ)"
+    STAFF ||--o{ ROLE_ASSIGNMENTS : has
+    ROLE_ASSIGNMENTS }o--|| ROLES_PERMISSIONS : references
+
+    BRANCHES ||--o{ BRANCH_INVENTORY : stocks
+    BRANCHES ||--o{ VET_APPOINTMENTS : hosts
+    BRANCHES ||--o{ INVENTORY_LOG : logs
+
+    PRODUCTS ||--o{ BRANCH_INVENTORY : "available as"
+    PRODUCTS }o--|| CATEGORIES : "belongs to"
+    PRODUCTS ||--o{ INVENTORY_LOG : tracks
+    PRODUCTS ||--o{ PRESCRIPTIONS : "gates (if restricted)"
+    PRODUCTS ||--o{ REVIEWS : receives
+    PRODUCTS ||--o{ ORDER_ITEMS : "ordered as"
+    CATEGORIES ||--o{ CATEGORIES : "nests under"
+
+    PRESCRIPTIONS }o--|| STAFF : "reviewed by"
+    PRESCRIPTIONS ||--o{ PRESCRIPTION_AUDIT : logs
+
+    PET_PROFILES ||--o{ VET_APPOINTMENTS : "booked for"
+    VET_APPOINTMENTS }o--|| STAFF : "attended by"
+
+    ORDERS ||--o{ ORDER_ITEMS : contains
+    ORDERS ||--o{ ORDER_STATUS_HISTORY : tracks
+    ORDERS ||--o| PAYMENTS : "paid via"
+    ORDERS }o--o| PROMOTIONS : "applies"
+    ORDERS }o--|| BRANCHES : "fulfilled by (per sub-order)"
+    ORDERS }o--o| DELIVERY_PARTNERS : "delivered by"
+    ORDER_ITEMS }o--|| PRODUCTS : references
+
+    SUPPORT_TICKETS ||--o{ TICKET_MESSAGES : contains
+    SUPPORT_TICKETS }o--|| STAFF : "assigned to"
+  </pre>
+
+  <h3 class="sub">Entity detail <small>fields the brief's shorthand needs spelled out</small></h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Entity</th><th>Key fields beyond the brief's list</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><code>branch_inventory</code></td><td>Separate table, not a JSON column on <code>products</code>: <code>(product_id, branch_id, stock_qty, price, updated_at)</code>, unique on <code>(product_id, branch_id)</code>.</td><td>The IA spec's location-aware logic reads and writes this constantly — a relational table with a unique constraint lets Postgres enforce "one stock row per product per branch" and makes the race-condition-safe decrement in section 04 a single <code>UPDATE … WHERE stock_qty >= qty</code> statement.</td></tr>
+        <tr><td><code>prescription_audit</code></td><td>Append-only: <code>(prescription_id, event, actor_staff_id, licence_number, timestamp, metadata)</code>. No <code>UPDATE</code> or <code>DELETE</code> grant on this table for any application role.</td><td>Matches the IA spec's compliance note — the audit trail a regulator asks for has to be structurally un-editable, not just conventionally append-only.</td></tr>
+        <tr><td><code>role_assignments</code></td><td>Join table between <code>staff</code> and <code>roles_permissions</code>, not a single <code>role</code> enum column on <code>staff</code>.</td><td>A branch manager who also fills in as a cashier needs two roles at once — the brief's permission list ("approve_prescriptions", "manage_staff" etc.) implies roles aren't mutually exclusive.</td></tr>
+        <tr><td><code>orders</code> vs. sub-orders</td><td><code>orders</code> stores the customer-facing total and payment; a nullable <code>parent_order_id</code> self-reference lets a split-fulfilment cart (IA spec, section 05) become 2+ child order rows sharing one <code>payments</code> row.</td><td>Keeps "one payment, two deliveries" relational instead of overloading <code>order_items.branch_id</code> alone to imply a split that the status/tracking UI also needs to reason about independently.</td></tr>
+        <tr><td><code>addresses</code></td><td>Separate table, not an array column: <code>(user_id, label, line1, area, lat, lng, is_default)</code>.</td><td>Geocoded once on save, not re-geocoded on every checkout — the Distance Matrix calls in section 04 read stored coordinates.</td></tr>
+        <tr><td><code>delivery_partners.api_credentials</code></td><td>Encrypted at the application layer (not relying on column-level DB encryption alone) with keys in a secrets manager, never in the row's plaintext reach of a routine DB backup.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 03 -->
+<section id="api">
+  <div class="sec-head"><div class="tab">03</div><div><h2>API endpoints</h2><p>REST resources, grouped by module. <code>Auth</code> column states the minimum required; every write endpoint also passes through the rate limiter and the Zod validation layer named in section 01.</p></div></div>
+
+  <h3 class="sub">Auth &amp; users</h3>
+  <div class="tbl wide"><table>
+    <tbody>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/auth/register</code></td><td>Create a customer account</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/auth/login</code></td><td>Issue JWT + refresh token</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/auth/refresh</code></td><td>Rotate access token</td><td class="auth">refresh token</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/auth/otp/verify</code></td><td>Verify phone OTP (Termii)</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/users/me</code></td><td>Current user profile</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-patch">PATCH</span></td><td><code>/v1/users/me</code></td><td>Update profile</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/users/me/addresses</code></td><td>List saved addresses</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/users/me/addresses</code></td><td>Add address (geocodes on save)</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-delete">DELETE</span></td><td><code>/v1/users/me/addresses/:id</code></td><td>Remove address</td><td class="auth">customer</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Branches &amp; catalogue</h3>
+  <div class="tbl wide"><table>
+    <tbody>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/branches</code></td><td>List branches with services offered</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/branches/match</code></td><td><code>?lat&amp;lng</code> — ranked branches by distance/radius (IA spec §02)</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/categories?vertical=</code></td><td>Category tree for a vertical</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/products</code></td><td>Search/filter catalogue — <code>?q=&amp;category=&amp;branch_id=&amp;vertical=</code></td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/products/:id</code></td><td>Product detail incl. per-branch stock/price</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/products/:id/availability</code></td><td>Stock across all branches for the fallback flow (IA §02 step 4)</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/products/:id/notify-me</code></td><td>Register a restock waitlist entry</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/products/:id/reviews</code></td><td>Submit a review (verified-purchase checked server-side)</td><td class="auth">customer</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Cart &amp; orders</h3>
+  <div class="tbl wide"><table>
+    <tbody>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/cart</code></td><td>Current cart, grouped by branch</td><td class="auth">customer / session</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/cart/items</code></td><td>Add item (re-checks stock server-side)</td><td class="auth">customer / session</td></tr>
+      <tr><td><span class="m m-patch">PATCH</span></td><td><code>/v1/cart/items/:id</code></td><td>Change quantity</td><td class="auth">customer / session</td></tr>
+      <tr><td><span class="m m-delete">DELETE</span></td><td><code>/v1/cart/items/:id</code></td><td>Remove item</td><td class="auth">customer / session</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/cart/quote</code></td><td>Run the calculation engine (§04), return the full breakdown</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/orders</code></td><td>Create order(s) from cart — may return 2+ sub-orders</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/orders</code></td><td>Order history</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/orders/:id</code></td><td>Order detail incl. status history and sub-orders</td><td class="auth">customer (own) / staff</td></tr>
+      <tr><td><span class="m m-patch">PATCH</span></td><td><code>/v1/orders/:id/status</code></td><td>Advance status (writes <code>order_status_history</code>)</td><td class="auth">staff</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Prescriptions &amp; veterinary</h3>
+  <div class="tbl wide"><table>
+    <tbody>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/prescriptions</code></td><td>Submit a consult request (IA spec §03)</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/prescriptions</code></td><td>Customer's own request history</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/prescriptions/:id/upload</code></td><td>Attach prescription image (S3, encrypted)</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/prescriptions/:id/redeem</code></td><td>Redeem a one-time unlock token at checkout</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/pets</code></td><td>Customer's pet profiles</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/pets</code></td><td>Add a pet profile</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/vet/slots</code></td><td><code>?date=</code> — available slots at the flagship branch</td><td class="auth pub">public</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/vet/appointments</code></td><td>Book a visit</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/vet/appointments</code></td><td>Customer's appointment history</td><td class="auth">customer</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Payments &amp; promotions</h3>
+  <div class="tbl wide"><table>
+    <tbody>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/payments/initialize</code></td><td>Create a Paystack transaction, return an auth URL/reference</td><td class="auth">customer</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/payments/webhook</code></td><td>Paystack server-to-server callback — verifies signature, never trusts client confirmation</td><td class="auth">signed webhook</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/payments/:id/refund</code></td><td>Issue a refund via Paystack</td><td class="auth">staff</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/promotions/validate</code></td><td>Check a promo code against cart contents and usage limits</td><td class="auth">customer</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Admin &amp; staff</h3>
+  <div class="tbl wide"><table>
+    <tbody>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/admin/inventory</code></td><td>Stock levels, filterable by branch/product</td><td class="auth">staff: inventory_manager</td></tr>
+      <tr><td><span class="m m-patch">PATCH</span></td><td><code>/v1/admin/inventory/:branch_id/:product_id</code></td><td>Adjust stock, writes <code>inventory_log</code></td><td class="auth">staff: inventory_manager</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/admin/prescriptions/queue</code></td><td>Pending prescription requests</td><td class="auth">staff: pharmacist</td></tr>
+      <tr><td><span class="m m-patch">PATCH</span></td><td><code>/v1/admin/prescriptions/:id/decision</code></td><td>Approve/reject, requires licence number</td><td class="auth">staff: pharmacist</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/admin/vet/calendar</code></td><td>Vet staff availability and bookings</td><td class="auth">staff: vet, branch_manager</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/admin/staff</code></td><td>Staff directory</td><td class="auth">staff: manage_staff</td></tr>
+      <tr><td><span class="m m-post">POST</span></td><td><code>/v1/admin/staff</code></td><td>Create a staff account with role assignment</td><td class="auth">staff: manage_staff</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/admin/reports/financial</code></td><td>Revenue/order reports</td><td class="auth">staff: view_financial_reports</td></tr>
+      <tr><td><span class="m m-get">GET</span></td><td><code>/v1/admin/audit-log</code></td><td>Admin action history</td><td class="auth">staff: superadmin</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note" style="margin-top:1rem">Every <code>/v1/admin/*</code> route additionally checks the caller's <code>role_assignments</code> against the specific permission string named in the Auth column (e.g. <code>edit_inventory</code>, <code>approve_prescriptions</code>) — the RBAC guard rejects a request before it reaches the handler, and the rejection itself is logged.</p>
+</section>
+
+<!-- ============================================================ 04 -->
+<section id="logic">
+  <div class="sec-head"><div class="tab">04</div><div><h2>Core business logic</h2><p>The two functions everything else in the platform calls — implemented, not just described, since a pseudocode gap here is where real bugs live.</p></div></div>
+
+  <h3 class="sub">Location-aware branch matching</h3>
+  <pre class="code"><span class="kw">async function</span> <span class="fn">findAvailableBranches</span>(customerCoords, productId) {
+  <span class="c1">// 1. One query joins branch_inventory → branches, no N+1 per-branch lookup</span>
+  <span class="kw">const</span> rows = <span class="kw">await</span> db.query(<span class="st">`
+    SELECT b.*, bi.stock_qty, bi.price,
+           earth_distance(ll_to_earth($1,$2), ll_to_earth(b.lat,b.lng)) / 1000 AS distance_km
+    FROM branches b
+    JOIN branch_inventory bi ON bi.branch_id = b.id
+    WHERE bi.product_id = $3
+    ORDER BY distance_km ASC
+  `</span>, [customerCoords.lat, customerCoords.lng, productId]);
+
+  <span class="kw">const</span> inStock = rows.filter(r => r.stock_qty > <span class="st">0</span>);
+  <span class="kw">const</span> inRadius = inStock.filter(r => r.distance_km <= r.delivery_radius_km);
+
+  <span class="kw">if</span> (inRadius.length) {
+    <span class="kw">return</span> { status: <span class="st">'matched'</span>, primary: inRadius[<span class="st">0</span>], alternatives: inRadius.slice(<span class="st">1</span>) };
+  }
+  <span class="kw">if</span> (inStock.length) {
+    <span class="c1">// outside every branch's normal radius but still gettable — IA spec §02 step 4</span>
+    <span class="kw">return</span> { status: <span class="st">'outside_radius'</span>, branch: inStock[<span class="st">0</span>], feeMultiplier: <span class="st">1.6</span> };
+  }
+  <span class="kw">return</span> { status: <span class="st">'unavailable'</span> }; <span class="c1">// triggers the notify-me waitlist write</span>
+}</pre>
+  <p class="note" style="margin-top:0.85rem"><strong>Race condition.</strong> This function only <em>reads</em> stock. The actual decrement happens at <code>POST /v1/cart/items</code> and again at order creation, as <code>UPDATE branch_inventory SET stock_qty = stock_qty - $1 WHERE product_id=$2 AND branch_id=$3 AND stock_qty >= $1</code> — a single atomic statement, so two customers racing for the last unit can't both succeed, matching the IA spec's explicit rule in §02.</p>
+
+  <h3 class="sub">Order calculation engine</h3>
+  <pre class="code"><span class="kw">async function</span> <span class="fn">calculateOrderTotal</span>(cart, promoCode, customer, deliveryMethod) {
+  <span class="c1">// Fixed order — see IA spec §05 for the customer-facing version of this waterfall</span>
+  <span class="kw">const</span> itemsSubtotal = sum(cart.items.map(i => i.unitPrice * i.qty));
+  <span class="kw">const</span> comboDiscount  = <span class="kw">await</span> <span class="fn">applyComboRules</span>(cart.items);              <span class="c1">// step 2</span>
+  <span class="kw">const</span> promoDiscount  = <span class="kw">await</span> <span class="fn">validatePromo</span>(promoCode, itemsSubtotal, cart);  <span class="c1">// step 3</span>
+  <span class="kw">const</span> loyaltyDiscount = <span class="fn">applyLoyaltyPoints</span>(customer.pointsToRedeem);        <span class="c1">// step 4</span>
+
+  <span class="kw">const</span> subtotal = itemsSubtotal - comboDiscount - promoDiscount - loyaltyDiscount;
+
+  <span class="c1">// Split by fulfilling branch — one fee per sub-order, not one fee for the cart</span>
+  <span class="kw">const</span> subOrders = <span class="fn">groupByBranch</span>(cart.items);
+  <span class="kw">const</span> deliveryFees = <span class="kw">await</span> Promise.all(
+    subOrders.map(so => <span class="fn">calculateDeliveryFee</span>(deliveryMethod, customer.address, so.branch))
+  );
+  <span class="kw">const</span> deliveryFee = sum(deliveryFees);
+
+  <span class="kw">const</span> serviceCharge = <span class="fn">getServiceCharge</span>(cart.orderType);   <span class="c1">// e.g. vet booking fee</span>
+  <span class="kw">const</span> tax = <span class="fn">applyTax</span>(subtotal, cart.items);          <span class="c1">// per-category VAT code, see §07</span>
+  <span class="kw">const</span> finalTotal = subtotal + deliveryFee + serviceCharge + tax;
+
+  <span class="kw">return</span> {
+    itemsSubtotal, comboDiscount, promoDiscount, loyaltyDiscount, subtotal,
+    subOrders: subOrders.map((so, i) => ({ ...so, deliveryFee: deliveryFees[i] })),
+    deliveryFee, serviceCharge, tax, finalTotal
+  };
+}</pre>
+  <p class="note" style="margin-top:0.85rem"><strong>Server is the source of truth.</strong> <code>POST /v1/cart/quote</code> runs this exact function and the client renders its response — the frontend never recomputes totals locally for anything but an optimistic UI preview. <code>POST /v1/orders</code> runs it again at order creation and persists the result; a price shown at review that doesn't match what's charged is treated as a bug, not a display nuance.</p>
+</section>
+
+<!-- ============================================================ 05 -->
+<section id="integrations">
+  <div class="sec-head"><div class="tab">05</div><div><h2>Third-party integrations</h2><p>Every external dependency, what it's for, and the one abstraction (delivery) that has to be provider-agnostic from day one.</p></div></div>
+
+  <h3 class="sub">Delivery provider abstraction</h3>
+  <pre class="code"><span class="kw">interface</span> DeliveryProvider {
+  <span class="fn">getQuote</span>(pickup, dropoff, parcel): Promise&lt;{ fee: number, etaMinutes: number }&gt;;
+  <span class="fn">createDelivery</span>(order): Promise&lt;{ providerRef: string }&gt;;
+  <span class="fn">trackDelivery</span>(providerRef): Promise&lt;{ status: DeliveryStatus, lastLocation?: LatLng }&gt;;
+  <span class="fn">cancelDelivery</span>(providerRef): Promise&lt;{ cancelled: boolean }&gt;;
+}
+
+<span class="c1">// Each adapter implements the same 4 methods — Order module never imports a provider SDK directly</span>
+<span class="kw">class</span> KwikAdapter <span class="kw">implements</span> DeliveryProvider { <span class="c1">/* … */</span> }
+<span class="kw">class</span> GokadaAdapter <span class="kw">implements</span> DeliveryProvider { <span class="c1">/* … */</span> }
+<span class="kw">class</span> InHouseAdapter <span class="kw">implements</span> DeliveryProvider { <span class="c1">// staff-assigned rider, manual status updates</span> }</pre>
+
+  <div class="tbl wide" style="margin-top:1rem">
+    <table>
+      <thead><tr><th>Provider</th><th>Used for</th><th>Key integration points</th></tr></thead>
+      <tbody>
+        <tr><td>Paystack</td><td>Checkout, saved cards, refunds</td><td>Inline/Popup on the client; <code>/v1/payments/webhook</code> verifies the signature server-side before marking an order paid — the frontend's "success" callback is never trusted alone. Card data never touches Robakeye's servers (tokenization only).</td></tr>
+        <tr><td>Kwik / Gokada / Fez</td><td>Third-party courier delivery</td><td>Behind the <code>DeliveryProvider</code> interface above. Adding a 4th provider is a new adapter class, zero changes to the Order module or checkout flow.</td></tr>
+        <tr><td>In-house rider system</td><td>Delivery within each branch's own radius</td><td>Same interface, backed by a simple staff-assigned queue in the admin Delivery &amp; Logistics module rather than an external API.</td></tr>
+        <tr><td>Termii</td><td>SMS: OTP, order confirmations, delivery updates</td><td>Nigerian SMS gateway with DND-route support, needed for reliable delivery to Nigerian numbers.</td></tr>
+        <tr><td>WhatsApp Business API</td><td>"Talk to a Pharmacist" consult channel, order notifications</td><td>Inbound messages write to the same <code>prescriptions</code> review queue as the web form (IA spec §03) — one data model, two entry channels.</td></tr>
+        <tr><td>Google Maps API</td><td>Geocoding, Distance Matrix, Places Autocomplete</td><td>Geocoding runs once per saved address, not per page view (cached in <code>addresses.lat/lng</code>). Distance Matrix backs the branch-matching function in §04.</td></tr>
+        <tr><td>SendGrid / Postmark</td><td>Transactional email — receipts, password reset, prescription decisions</td><td>Postmark's dedicated transactional stream avoids marketing-email deliverability issues affecting time-sensitive mail like an approval notice.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 06 -->
+<section id="devops">
+  <div class="sec-head"><div class="tab">06</div><div><h2>Infrastructure &amp; DevOps</h2><p>Three environments, one pipeline, a manual gate before anything reaches production.</p></div></div>
+
+  <pre class="mermaid">
+flowchart LR
+    DEV["Developer pushes\nto a feature branch"] --> PR["Pull request opened"]
+    PR --> LINT["GitHub Actions:\nlint + typecheck"]
+    LINT --> UNIT["Unit tests\nJest / Vitest"]
+    UNIT --> E2E["E2E tests\nPlaywright, against a\npreview deploy"]
+    E2E --> REVIEW["Code review"]
+    REVIEW --> MERGE["Merge to main"]
+    MERGE --> STAGE["Auto-deploy to staging\n(Vercel preview + Railway staging)"]
+    STAGE --> SMOKE["Smoke tests on staging"]
+    SMOKE --> GATE{"Manual approval"}
+    GATE -- approved --> PROD["Deploy to production"]
+    GATE -- rejected --> DEV
+    PROD --> MON["Sentry + Uptime Robot\nmonitor the release"]
+  </pre>
+
+  <h3 class="sub">Environments</h3>
+  <div class="grid g3 wide">
+    <div class="env-card"><div class="eh" style="background:var(--rb-n600)">Development</div><div class="eb">
+      <div><dt>Database</dt><span>Isolated, seeded sample data</span></div>
+      <div><dt>Deploy</dt><span>Local + ephemeral PR previews</span></div>
+      <div><dt>Third parties</dt><span>Paystack test keys, Termii sandbox</span></div>
+    </div></div>
+    <div class="env-card"><div class="eh" style="background:var(--rb-amber-deep)">Staging</div><div class="eb">
+      <div><dt>Database</dt><span>Isolated, production-like volume</span></div>
+      <div><dt>Deploy</dt><span>Automatic on merge to main</span></div>
+      <div><dt>Third parties</dt><span>Test keys; real SMS/email suppressed to a test allowlist</span></div>
+    </div></div>
+    <div class="env-card"><div class="eh" style="background:var(--rb-navy)">Production</div><div class="eb">
+      <div><dt>Database</dt><span>Isolated, daily backups, 30-day retention</span></div>
+      <div><dt>Deploy</dt><span>Manual approval required after staging smoke tests pass</span></div>
+      <div><dt>Third parties</dt><span>Live keys, secrets in a managed vault, never in repo or CI logs</span></div>
+    </div></div>
+  </div>
+
+  <h3 class="sub">Monitoring</h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Tool</th><th>Watches</th></tr></thead>
+      <tbody>
+        <tr><td>Sentry</td><td>Frontend and backend error tracking, release-tagged so a regression traces to the deploy that caused it.</td></tr>
+        <tr><td>LogRocket</td><td>Session replay — scoped to UX debugging, never recording prescription upload fields or payment forms (input masking required for both).</td></tr>
+        <tr><td>Uptime Robot</td><td>Endpoint uptime, including the Paystack webhook URL specifically — a silently failing webhook endpoint means orders stay "pending payment" forever.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 07 -->
+<section id="security">
+  <div class="sec-head"><div class="tab">07</div><div><h2>Security &amp; compliance</h2><p>What's non-negotiable before launch, mapped to where it's actually enforced.</p></div></div>
+
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Requirement</th><th>Enforced at</th></tr></thead>
+      <tbody>
+        <tr><td>HTTPS everywhere</td><td>Platform-level (Vercel/Railway terminate TLS); HSTS header set on every response.</td></tr>
+        <tr><td>Rate limiting</td><td>API Gateway module, Redis-backed, per-IP and per-account; tighter limits on <code>/v1/auth/*</code> and <code>/v1/prescriptions/*</code>.</td></tr>
+        <tr><td>Input validation</td><td>Zod schemas on every endpoint, shared between frontend form validation (React Hook Form + Zod) and backend — one schema, not two that can drift.</td></tr>
+        <tr><td>Encryption at rest</td><td>Prescription uploads and PII: S3 server-side encryption plus application-layer encryption for <code>delivery_partners.api_credentials</code>. Database-level encryption on the RDS/Railway volume as a second layer, not a substitute for the first.</td></tr>
+        <tr><td>NDPA 2023 compliance</td><td>Data minimisation on every schema (don't collect what isn't used), a documented data retention policy per entity (prescriptions longest, per PCN guidance — IA spec §03/§08), and a subject-access-request process for the admin module.</td></tr>
+        <tr><td>PCI-DSS scope</td><td>Minimised entirely — Paystack Inline/Popup means card data never reaches Robakeye's servers; only a token and a reference are stored.</td></tr>
+        <tr><td>2FA for admin/superadmin</td><td>Mandatory at login for any <code>staff</code> role above cashier — TOTP, enforced in the Admin module's auth guard, not optional per-user.</td></tr>
+        <tr><td>Audit logs</td><td><code>prescription_audit</code> (append-only, §02) plus a general <code>admin_audit_log</code> for inventory edits, staff changes, and refunds — every write from an admin route logs actor, action, and timestamp automatically via a NestJS interceptor, not manually per-endpoint.</td></tr>
+        <tr><td>Backups</td><td>Daily automated, 30-day retention minimum, tested restore quarterly — an untested backup is not a backup.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 08 -->
+<section id="scale">
+  <div class="sec-head"><div class="tab">08</div><div><h2>Scalability</h2><p>What adding a 4th branch, a new vertical, or real traffic actually touches.</p></div></div>
+
+  <div class="grid g3 wide">
+    <div class="card"><h4>Adding a branch</h4><ul><li>One <code>INSERT</code> into <code>branches</code> plus its <code>branch_inventory</code> rows — no schema change.</li><li>Branch-matching (§04) already ranks over <em>all</em> branches; a 4th branch is just another row it sorts.</li><li>Admin module's per-branch dashboard and RBAC scoping already key off <code>branch_id</code>, not a hardcoded count.</li></ul></div>
+    <div class="card"><h4>Adding a vertical</h4><ul><li><code>categories.vertical</code> is already an open string, not an enum of exactly 3 — a 4th vertical is new category rows plus (if it needs one) a new NestJS module behind the same Catalogue service.</li><li>The product/order schema doesn't assume 3 verticals anywhere; only UI-level copy ("Pharmacy · Veterinary · Supermarket") does.</li></ul></div>
+    <div class="card"><h4>Splitting the monolith</h4><ul><li>Each NestJS module already owns its own schema tables and talks to others through defined services, not raw queries — the seam to extract a module into its own deployable service is the module boundary itself.</li><li>Split only when a specific module's load or deploy cadence genuinely diverges from the rest — not preemptively.</li></ul></div>
+  </div>
+  <p class="note" style="margin-top:1rem">The brief's instinct to stay a modular monolith for MVP is the right one for this traffic profile. The cost of over-engineering into microservices early (network calls where function calls used to be, distributed transactions for what's currently one Postgres transaction) is larger than the cost of a later, deliberate split once a real bottleneck names itself.</p>
+</section>
+
+<!-- ============================================================ 09 -->
+<section id="open">
+  <div class="sec-head"><div class="tab">09</div><div><h2>Assumptions &amp; open items</h2><p>Technical calls made to keep this architecture concrete, plus items that depend on decisions from the earlier specs.</p></div></div>
+  <ol class="open-items">
+    <li><b>Tax engine</b>§04's <code>applyTax</code> assumes per-category VAT codes exist, same open item as the IA spec §08 — needs the real category→tax-code mapping before the Order module's tax logic can be finalised.</li>
+    <li><b>Prescription retention period</b>§07 defers to "PCN guidance" for how long <code>prescription_audit</code> rows and uploaded images must be kept — needs a confirmed number of years before the S3 lifecycle policy can be set.</li>
+    <li><b>Delivery radius &amp; fee formula</b>§04's <code>feeMultiplier: 1.6</code> for out-of-radius delivery is a placeholder constant — needs real per-branch radius values and a fee formula from the business (same open item as IA spec §08).</li>
+    <li><b>Search engine trigger</b>§00 defers Algolia/Elasticsearch until catalogue size or query volume justifies it — needs an agreed threshold (e.g. SKU count or P95 query latency) so the migration isn't decided reactively under load.</li>
+    <li><b>Mobile app</b>The brief's eventual app-store badges (homepage spec §08) aren't reflected in this architecture — if a native app is actually planned, the REST API's versioning and auth (refresh-token rotation, not just session cookies) needs confirming as mobile-ready now rather than retrofitted later.</li>
+    <li><b>Split-order payment reconciliation</b>§02's <code>parent_order_id</code> model needs a concrete refund/cancellation procedure when only one sub-order fails after a single combined payment — same open item flagged in the IA spec §08, now also a Payment-module design question.</li>
+  </ol>
+</section>
+</main>
+</div>

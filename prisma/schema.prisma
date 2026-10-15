@@ -1,0 +1,797 @@
+// Robakeye — Prisma schema
+// See docs/technical-architecture.html for the full ERD this schema implements,
+// docs/pharmacy-vet-compliance.html for the classification/approval rules, and
+// docs/admin-dashboard-rbac.html for the role/permission model.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (pgbouncer, port 6543) — runtime queries
+  directUrl = env("DIRECT_URL") // direct (port 5432) — migrations only
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUTH — NextAuth.js v5 Prisma Adapter models
+// ─────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Repurposed as our own device/session registry (NextAuth uses the JWT
+// strategy for Credentials-provider auth, not database sessions) so the
+// account dashboard can list active sessions and revoke them individually.
+// Each row's `id` is embedded in the JWT as the `sid` claim; the jwt()
+// callback checks the row still exists on every request, so deleting it
+// here signs that one device out immediately.
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @default(cuid())
+  userId       String
+  expires      DateTime
+  userAgent    String?
+  ipAddress    String?
+  lastSeenAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────
+// USERS, ROLES & PERMISSIONS
+// ─────────────────────────────────────────────────────────────
+
+enum UserKind {
+  CUSTOMER
+  STAFF
+}
+
+model User {
+  id            String    @id @default(cuid())
+  kind          UserKind  @default(CUSTOMER)
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  phone         String?   @unique
+  passwordHash  String? // null for OAuth-only customers
+  image         String?
+
+  // TOTP 2FA — required for STAFF kind whose Role.requires2FA is true
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean @default(false)
+
+  // Bumped on password change / "log out everywhere" as a belt-and-suspenders
+  // global invalidation on top of per-device Session row deletion.
+  sessionVersion Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  staff           Staff?
+  petProfiles     PetProfile[]
+  orders          Order[]
+  prescriptions   Prescription[]
+  vetAppointments VetAppointment[]
+  reviews         Review[]
+  supportTickets  SupportTicket[]
+  addresses       Address[]
+  cart            Cart?
+  consultRequests ConsultRequest[]
+
+  @@index([kind])
+}
+
+// A custom role is a named permission set, optionally scoped to one branch.
+// Seed data ships the 8 default roles described in the RBAC spec
+// (SUPERADMIN, BRANCH_MANAGER, PHARMACIST, VET_STAFF, INVENTORY_MANAGER,
+// CASHIER, CUSTOMER_SERVICE, DELIVERY_COORDINATOR); admins may add more.
+enum BranchScope {
+  ALL // every branch (e.g. SUPERADMIN, CUSTOMER_SERVICE)
+  OWN // only the branch(es) this staff member is assigned to
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  isSystem    Boolean      @default(false) // true = one of the 8 seeded roles, not deletable
+  branchScope BranchScope  @default(OWN)
+  requires2FA Boolean      @default(false) // SUPERADMIN + BRANCH_MANAGER seeded true
+  permissions Permission[] @relation("RolePermissions")
+  staff       Staff[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// The 18 permission flags from the RBAC matrix, e.g. "orders.view",
+// "orders.refund", "products.write", "prescriptions.review", "staff.manage".
+model Permission {
+  id    String @id @default(cuid())
+  key   String @unique // dot-namespaced, e.g. "prescriptions.review"
+  label String
+  roles Role[] @relation("RolePermissions")
+}
+
+model Staff {
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId   String
+  role     Role    @relation(fields: [roleId], references: [id])
+  isActive Boolean @default(true)
+
+  branches     StaffBranch[] // branch assignments (empty + branchScope=ALL = every branch)
+  availability VetAvailability[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StaffBranch {
+  staffId  String
+  staff    Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, branchId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// BRANCHES
+// ─────────────────────────────────────────────────────────────
+
+enum BranchService {
+  PHARMACY
+  SUPERMARKET
+  VETERINARY
+}
+
+model Branch {
+  id      String @id @default(cuid())
+  slug    String @unique // "ajadi" | "ojoo" | "sheu"
+  name    String
+  address String
+
+  // TODO(client): confirm real lat/lng, phone, and operating hours —
+  // placeholders below are approximate Ibadan coordinates, not surveyed.
+  lat   Float
+  lng   Float
+  phone String?
+  hours Json? // { mon: "8:00-21:00", ... }
+
+  services BranchService[]
+
+  inventory            BranchInventory[]
+  orders               Order[]
+  vetAppointments      VetAppointment[]
+  staff                StaffBranch[]
+  deliveryZones        DeliveryZone[]
+  restockSubscriptions RestockSubscription[]
+  alerts               AdminAlert[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// CATALOGUE
+// ─────────────────────────────────────────────────────────────
+
+enum Vertical {
+  PHARMACY
+  VETERINARY
+  SUPERMARKET
+}
+
+// Per docs/pharmacy-vet-compliance.html: 3-tier classification.
+// CONTROLLED has NO purchase path anywhere in the app — it exists only
+// so such products can be listed as "visit branch" / informational.
+enum ProductClass {
+  OTC // over the counter — normal add-to-cart
+  POM // prescription-only medicine — cart-lockable, needs an approved Rx line item
+  CONTROLLED // never purchasable online, any channel
+}
+
+model Category {
+  id       String     @id @default(cuid())
+  slug     String     @unique
+  name     String
+  vertical Vertical
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+}
+
+model Product {
+  id          String       @id @default(cuid())
+  sku         String       @unique
+  slug        String       @unique
+  name        String
+  description String?      @db.Text
+  vertical    Vertical
+  class       ProductClass @default(OTC)
+  categoryId  String
+  category    Category     @relation(fields: [categoryId], references: [id])
+  priceKobo   Int // store in kobo (integer) — never float currency
+  images      String[] // Cloudinary public IDs
+  isActive    Boolean      @default(true)
+
+  inventory            BranchInventory[]
+  orderItems           OrderItem[]
+  reviews              Review[]
+  prescriptionLines    PrescriptionLine[]
+  restockSubscriptions RestockSubscription[]
+  consultRequests      ConsultRequest[]
+  alerts               AdminAlert[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vertical, class])
+}
+
+model BranchInventory {
+  id         String    @id @default(cuid())
+  branchId   String
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity   Int       @default(0)
+  lowStockAt Int       @default(5)
+  expiryDate DateTime? // pharmacy/supermarket perishables — drives the 90/60/30-day Inngest alert
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, productId])
+  @@index([expiryDate])
+}
+
+// Per docs/information-architecture.html §02 "Fully unavailable" state: a
+// per-product, per-branch waitlist. The actual notify-on-restock trigger
+// fires from inventory write paths built in Milestone 10's admin — this
+// model exists now because the capture UI is part of this milestone's
+// location-aware product page, but the row stays dormant (notifiedAt null)
+// until that trigger exists.
+model RestockSubscription {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branchId   String
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  email      String
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([productId, branchId, email])
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRESCRIPTIONS (see compliance doc — Robakeye verifies, never originates)
+// ─────────────────────────────────────────────────────────────
+
+enum PrescriptionStatus {
+  PENDING
+  PARTIALLY_APPROVED // some line items approved, others rejected
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum PrescriptionLineStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Prescription {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  imagePublicId String // Cloudinary, delivery type = "private"
+  status        PrescriptionStatus @default(PENDING)
+  pharmacistId  String? // Staff.id of reviewer
+  reviewNotes   String?            @db.Text
+  reviewedAt    DateTime?
+  expiresAt     DateTime? // approval token expiry — cleanup handled by Inngest sleep(48h)
+
+  lines PrescriptionLine[]
+  order Order?
+  audit PrescriptionAuditEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Per-line-item approval — not all-or-nothing.
+model PrescriptionLine {
+  id              String                 @id @default(cuid())
+  prescriptionId  String
+  prescription    Prescription           @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product                @relation(fields: [productId], references: [id])
+  quantity        Int
+  status          PrescriptionLineStatus @default(PENDING)
+  rejectionReason String?
+}
+
+// Full decision timeline for the admin audit log view — one row per
+// event, not just the latest status on Prescription itself. lineId null =
+// a whole-prescription event (submitted, expired); staffId null = a
+// customer/system-generated event (submission, automatic expiry).
+model PrescriptionAuditEntry {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  lineId         String?
+  staffId        String?
+  action         String // "SUBMITTED" | "LINE_APPROVED" | "LINE_REJECTED" | "EXPIRED"
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  @@index([prescriptionId])
+}
+
+// "Talk to a Pharmacist" — simple polling chat (no Pusher/real-time infra
+// configured), per the brief's own "simple polling for MVP" allowance.
+// callbackPhone is the fallback path when no pharmacist is available.
+model ConsultRequest {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  productId     String?
+  product       Product?         @relation(fields: [productId], references: [id])
+  status        String           @default("OPEN") // OPEN | CLOSED
+  callbackPhone String?
+  messages      ConsultMessage[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model ConsultMessage {
+  id         String         @id @default(cuid())
+  consultId  String
+  consult    ConsultRequest @relation(fields: [consultId], references: [id], onDelete: Cascade)
+  senderKind String // CUSTOMER | PHARMACIST
+  senderId   String
+  body       String         @db.Text
+  createdAt  DateTime       @default(now())
+
+  @@index([consultId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// VETERINARY
+// ─────────────────────────────────────────────────────────────
+
+model PetProfile {
+  id        String    @id @default(cuid())
+  ownerId   String
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  species   String
+  breed     String?
+  birthDate DateTime?
+  weightKg  Float?
+  notes     String?   @db.Text
+
+  appointments       VetAppointment[]
+  vaccinationRecords VaccinationRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VaccinationRecord {
+  id             String     @id @default(cuid())
+  petId          String
+  pet            PetProfile @relation(fields: [petId], references: [id], onDelete: Cascade)
+  vaccine        String
+  givenAt        DateTime
+  dueAt          DateTime // the daily Inngest cron scans this for 14-day-out reminders
+  reminderSentAt DateTime?
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Pricing is a placeholder pending real business confirmation — same
+// status as the sample vet pricing already flagged on the homepage
+// (Milestone 4) and in docs/pharmacy-vet-compliance.html.
+model VetService {
+  id              String  @id @default(cuid())
+  name            String
+  description     String?
+  durationMinutes Int     @default(30)
+  priceKobo       Int
+  isActive        Boolean @default(true)
+
+  appointments VetAppointment[]
+}
+
+model VetAppointment {
+  id             String            @id @default(cuid())
+  petId          String
+  pet            PetProfile        @relation(fields: [petId], references: [id])
+  ownerId        String
+  owner          User              @relation(fields: [ownerId], references: [id])
+  branchId       String // always the Sheu flagship in practice; FK kept generic
+  branch         Branch            @relation(fields: [branchId], references: [id])
+  serviceId      String
+  service        VetService        @relation(fields: [serviceId], references: [id])
+  staffId        String? // Staff.id of assigned vet — null = any available vet
+  startsAt       DateTime
+  endsAt         DateTime
+  status         AppointmentStatus @default(REQUESTED)
+  notes          String?           @db.Text
+  reminderSentAt DateTime? // the delayed pre-appointment reminder, sent once via Inngest sleepUntil
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId, startsAt])
+}
+
+// Weekly recurring availability per vet staff member — admin-managed
+// (Milestone 9's "vet staff availability management"), not a hardcoded
+// schedule. Booking checks this minus existing appointments for the slot.
+model VetAvailability {
+  id        String @id @default(cuid())
+  staffId   String
+  staff     Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  dayOfWeek Int // 0 = Sunday .. 6 = Saturday
+  startTime String // "09:00", 24h local time
+  endTime   String // "17:00"
+
+  @@index([staffId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// CART / ORDERS
+// ─────────────────────────────────────────────────────────────
+
+model Cart {
+  id     String     @id @default(cuid())
+  userId String     @unique
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  CartItem[]
+
+  // Milestone 11 abandoned-cart recovery: which reminder stage (0=none,
+  // 1=1h, 2=24h, 3=72h-with-incentive) has already been sent for the
+  // CURRENT abandonment — reset to 0 by syncServerCart() whenever the cart
+  // is touched again, so resuming activity restarts the sequence instead
+  // of skipping straight to a later stage.
+  abandonedStage Int @default(0)
+
+  // Set manually by syncServerCart() on real item activity only — NOT the
+  // same as `updatedAt`, which Prisma's @updatedAt bumps on every write
+  // including the cron's own abandonedStage update. Using `updatedAt` for
+  // the threshold check would reset the 24h/72h clock every time a
+  // reminder fires, since sending stage 1 writes the row and would
+  // otherwise look like fresh activity.
+  lastActivityAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id        String @id @default(cuid())
+  cartId    String
+  cart      Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  quantity  Int
+  branchId  String // the branch this line will fulfil from
+
+  @@unique([cartId, productId, branchId])
+}
+
+model Address {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String // "Home", "Office"
+  line1     String
+  line2     String?
+  city      String  @default("Ibadan")
+  lat       Float?
+  lng       Float?
+  isDefault Boolean @default(false)
+
+  orders Order[]
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum DeliveryMethod {
+  DELIVERY
+  PICKUP
+}
+
+model Order {
+  id             String         @id @default(cuid())
+  orderNumber    String         @unique // human-readable, e.g. RK-20261012-0001
+  groupId        String? // shared across sibling sub-orders from one checkout — null for a single-branch order. Per docs/information-architecture.html §05: "one payment, two fulfilment records."
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  branchId       String // primary fulfilling branch (split orders create one Order per branch)
+  branch         Branch         @relation(fields: [branchId], references: [id])
+  addressId      String?
+  address        Address?       @relation(fields: [addressId], references: [id])
+  deliveryMethod DeliveryMethod @default(DELIVERY)
+  status         OrderStatus    @default(PENDING_PAYMENT)
+
+  // Full price breakdown — kobo integers throughout. See
+  // lib/orderCalculation.ts for the exact application order of these fields.
+  subtotalKobo        Int
+  comboDiscountKobo   Int @default(0)
+  promoDiscountKobo   Int @default(0)
+  loyaltyDiscountKobo Int @default(0)
+  deliveryFeeKobo     Int @default(0)
+  serviceChargeKobo   Int @default(0)
+  taxKobo             Int @default(0)
+  totalKobo           Int
+
+  promoCodeId    String?
+  promoCode      Promotion?    @relation(fields: [promoCodeId], references: [id])
+  prescriptionId String?       @unique
+  prescription   Prescription? @relation(fields: [prescriptionId], references: [id])
+
+  // Milestone 11 delivery management — who's carrying this order. Null
+  // until a Delivery Coordinator assigns one; stays null forever for a
+  // PICKUP order.
+  deliveryPartnerId String?
+  deliveryPartner   DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
+
+  items         OrderItem[]
+  payments      Payment[]
+  statusHistory OrderStatusHistory[]
+  review        Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([branchId, status])
+  @@index([groupId])
+}
+
+model OrderItem {
+  id            String  @id @default(cuid())
+  orderId       String
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product @relation(fields: [productId], references: [id])
+  quantity      Int
+  unitPriceKobo Int // price snapshot at purchase time
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROMOTIONS
+// ─────────────────────────────────────────────────────────────
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  COMBO
+}
+
+model Promotion {
+  id           String        @id @default(cuid())
+  code         String        @unique
+  type         PromotionType
+  valueKobo    Int? // for FIXED_AMOUNT
+  percentOff   Int? // for PERCENTAGE (0-100)
+  minSpendKobo Int? // cart items-subtotal floor before this code applies
+  startsAt     DateTime
+  endsAt       DateTime
+  usageLimit   Int?
+  usedCount    Int           @default(0)
+  isActive     Boolean       @default(true)
+
+  // Set by the Milestone 11 abandoned-cart cron's 72h stage — distinguishes
+  // a system-generated single-use incentive from an admin-created code, so
+  // the Promotions admin list can keep its "create" list clean of these.
+  generatedForUserId String?
+
+  createdAt DateTime @default(now())
+
+  orders Order[]
+
+  @@index([generatedForUserId])
+}
+
+// Combo/bundle deals — Milestone 6's orderCalculation.ts `applyComboRules`
+// stub exists for exactly this model; see docs/admin-dashboard-rbac.html
+// §06 "Combo/bundle deals": pick 2+ products, set a bundle price or a
+// discount, applied before any promo code. One deal may also be the
+// homepage countdown banner's live data source (homepage-design-spec.html
+// §07's "Baby Care Combo" banner, static until this model existed).
+enum ComboDiscountType {
+  FIXED_PRICE // bundle sells for exactly valueKobo total
+  PERCENT_OFF // percentOff% off the bundled products' combined price
+}
+
+model ComboDeal {
+  id           String            @id @default(cuid())
+  name         String
+  productIds   String[] // one of each required in the cart to trigger the bundle
+  discountType ComboDiscountType
+  valueKobo    Int? // for FIXED_PRICE
+  percentOff   Int? // for PERCENT_OFF (0-100)
+  startsAt     DateTime
+  endsAt       DateTime
+  isActive     Boolean           @default(true)
+
+  // Homepage banner scheduling (admin-dashboard-rbac.html §06) — a
+  // superadmin/branch manager flips this on one active deal at a time to
+  // drive the live countdown banner; headline is the only copy field the
+  // banner needs beyond what's already here.
+  isFeaturedOnHomepage Boolean @default(false)
+  bannerHeadline       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────────────────────
+
+enum PaymentStatus {
+  INITIALIZED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// One Paystack transaction can cover several sub-orders from one checkout
+// (docs/information-architecture.html §05: "one payment, two fulfilment
+// records"), so a Payment links to a checkout *group*, not a single Order
+// — orderId stays as a convenience pointer to one representative order
+// (e.g. for a single-branch checkout where there's only one anyway), but
+// the webhook resolves every affected Order via groupId.
+model Payment {
+  id          String        @id @default(cuid())
+  orderId     String?
+  order       Order?        @relation(fields: [orderId], references: [id])
+  groupId     String // matches Order.groupId — every Order row in a checkout now gets one, even a single-branch checkout
+  reference   String        @unique // Paystack reference
+  amountKobo  Int
+  status      PaymentStatus @default(INITIALIZED)
+  paystackRaw Json? // raw webhook payload, for audit
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([groupId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// DELIVERY
+// ─────────────────────────────────────────────────────────────
+
+model DeliveryZone {
+  id           String @id @default(cuid())
+  branchId     String
+  branch       Branch @relation(fields: [branchId], references: [id])
+  name         String
+  maxKm        Float
+  baseFeeKobo  Int
+  perKmFeeKobo Int
+}
+
+model DeliveryPartner {
+  id       String  @id @default(cuid())
+  name     String // "In-house rider" | "Gokada" | etc — see DeliveryProvider abstraction
+  isActive Boolean @default(true)
+
+  orders Order[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// REVIEWS & SUPPORT
+// ─────────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  orderId   String?  @unique
+  order     Order?   @relation(fields: [orderId], references: [id])
+  rating    Int // 1-5
+  body      String?  @db.Text
+  createdAt DateTime @default(now())
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model SupportTicket {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  subject   String
+  body      String       @db.Text
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN ALERTS (Milestone 10 — in-app surface for the 90/60/30-day
+// product-expiry Inngest cron; generic `type` so other future alert
+// sources can reuse this one feed instead of each growing its own table)
+// ─────────────────────────────────────────────────────────────
+
+model AdminAlert {
+  id        String   @id @default(cuid())
+  type      String // "EXPIRY_90" | "EXPIRY_60" | "EXPIRY_30"
+  severity  String   @default("INFO") // INFO | WARNING | CRITICAL
+  message   String
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead, createdAt])
+}

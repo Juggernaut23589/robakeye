@@ -1,0 +1,770 @@
+<title>Robakeye Homepage Spec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;600;700;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap">
+<style>
+/* Layout: a component-spec document, same shell as the IA spec. Each homepage
+   section gets a realistic full-colour mockup (brand tokens, not grey boxes —
+   this deliverable IS the visual design) followed by a spec table: spacing,
+   states, tokens. The component library at the end is the reusable kit. */
+:root {
+  --rb-navy: #1B1E6D; --rb-blue: #2F38EB; --rb-amber: #F19428; --rb-amber-deep: #A65800;
+  --rb-lavender-mist: #F4F1FD; --rb-lavender: #C8C1F1; --rb-lavender-deep: #5A4CB0;
+  --rb-success: #1E7F46; --rb-alert: #C62828;
+  --rb-n50: #FAFAFA; --rb-n200: #E4E4E9; --rb-n400: #A0A0AA; --rb-n600: #5C5C66; --rb-n900: #1A1A1A;
+  --rb-navy-50: #EEEFF8; --rb-amber-50: #FEF3E6; --rb-success-50: #E8F4EC; --rb-alert-50: #FCEBEB;
+
+  --bg: #F6F4FC; --surface: #FFFFFF; --ink: #1B1C3A; --muted: #5D5C78; --line: #E2DFF0;
+  --accent: #2F38EB; --tab: #1B1E6D; --well: #EFEDF8;
+  --ok: #1E7F46; --warn: #A65800; --bad: #C62828;
+
+  --f-display: "Sora", "Work Sans", system-ui, sans-serif;
+  --f-body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --col: 46rem; --wide: 76rem; --r: 10px;
+
+  /* motion — used across every interactive mockup below */
+  --dur: 220ms; --ease: cubic-bezier(.3,0,.2,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+    --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+    --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1027; --surface: #171936; --ink: #ECEBF8; --muted: #A9A8C8; --line: #2B2D58;
+  --accent: #9AA0FF; --tab: #2F38EB; --well: #1E2045;
+  --ok: #5BC98A; --warn: #E0A450; --bad: #FF8A8A; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+body { background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--f-body); }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { background: var(--well); padding: 0.1em 0.35em; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+button { font: inherit; }
+
+.shell { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); gap: 3rem; max-width: 98rem; margin: 0 auto; padding-inline: 2rem; }
+.rail { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; height: 100vh; padding-block: 2rem; display: flex; flex-direction: column; gap: 1.25rem; overflow-y: auto; }
+.rail .brand { display: flex; align-items: center; gap: 0.6rem; font: 700 1.05rem var(--f-display); color: var(--ink); }
+.rail .brand .dot { width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--rb-blue); flex: none; display: grid; place-items: center; }
+.rail .brand .dot svg { width: 0.9rem; height: 0.9rem; color: #fff; }
+.rail .doctype { font: 600 0.7rem var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: -0.6rem; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+.rail a { display: grid; grid-template-columns: 1.7rem 1fr; padding: 0.32rem 0.5rem; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 0.87rem; }
+.rail a:hover { background: var(--well); color: var(--ink); }
+.rail a span:first-child { font-family: var(--f-mono); font-size: 0.74rem; padding-top: 0.14rem; }
+.rail .meta { margin-top: auto; font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+main { min-width: 0; padding-block: 2rem 6rem; }
+
+.cover { background: var(--rb-navy); color: #fff; border-radius: 18px; padding: clamp(1.5rem, 4vw, 3.5rem); position: relative; overflow: hidden; }
+.cover::after { content: ""; position: absolute; right: -7rem; bottom: -10rem; width: 26rem; height: 26rem; background: var(--rb-blue); clip-path: polygon(50% 0, 100% 32%, 100% 100%, 0 100%, 0 32%); opacity: 0.4; }
+.cover > * { position: relative; z-index: 1; }
+.eyebrow { font: 600 0.75rem/1.2 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cover .eyebrow { color: var(--rb-amber); }
+.cover h1 { font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1.05; letter-spacing: -0.02em; font-weight: 800; margin-block: 0.7rem 1rem; }
+.cover p { color: #D5D6F2; max-width: 42rem; font-size: 1.05rem; }
+.cover dl { display: flex; flex-wrap: wrap; gap: 0.5rem 2.25rem; margin: 1.75rem 0 0; font-size: 0.85rem; }
+.cover dt { color: #A9ABE0; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.cover dd { margin: 0; font-weight: 500; }
+
+section { padding-block: 5rem 0; scroll-margin-top: 1rem; }
+.sec-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.25rem; align-items: start; max-width: var(--col); margin-bottom: 2rem; }
+.tab { width: 3.4rem; height: 3.6rem; background: var(--tab); color: #fff; clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%); display: grid; place-items: end center; padding-bottom: 0.55rem; font: 700 1rem/1 var(--f-mono); }
+.sec-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.2rem); letter-spacing: -0.015em; line-height: 1.1; }
+.sec-head p { color: var(--muted); margin-top: 0.6rem; font-size: 1.03rem; }
+.prose { max-width: var(--col); display: grid; gap: 1rem; }
+.prose p, .prose li { max-width: 68ch; }
+h3.sub { font-size: 1.15rem; margin-block: 3rem 1rem; display: flex; gap: 0.6rem; align-items: baseline; }
+h3.sub small { font: 500 0.78rem var(--f-mono); color: var(--muted); }
+.note { max-width: var(--col); background: var(--well); border-radius: var(--r); padding: 1rem 1.25rem; font-size: 0.92rem; }
+.note strong { font-family: var(--f-display); }
+.wide { max-width: var(--wide); }
+.grid { display: grid; gap: 1rem; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.25rem; min-width: 0; }
+.card h4 { font-size: 1rem; margin-bottom: 0.5rem; }
+.card ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; font-size: 0.92rem; }
+.tbl { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: 0.89rem; }
+th, td { text-align: left; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.7rem/1.3 var(--f-display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); background: var(--well); }
+tr:last-child td { border-bottom: 0; }
+.tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; font: 600 0.7rem var(--f-body); white-space: nowrap; }
+.sample { display: inline-block; font: 600 0.63rem var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--rb-amber-deep); background: var(--rb-amber-50); padding: 0.12rem 0.4rem; border-radius: 4px; }
+.open-items { max-width: var(--wide); counter-reset: oi; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+.open-items li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0.85rem 1rem 0.85rem 3rem; position: relative; font-size: 0.92rem; }
+.open-items li::before { counter-increment: oi; content: counter(oi); position: absolute; left: 1rem; top: 0.85rem; font: 700 0.85rem var(--f-mono); color: var(--accent); }
+.open-items li b { font-family: var(--f-display); display: block; margin-bottom: 0.15rem; }
+
+/* ---- the simulated browser / phone frame every mockup sits in */
+.frame { background: var(--rb-white, #fff); background: #FFFFFF; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: var(--wide); box-shadow: 0 20px 50px -24px rgba(27,30,109,0.28); color: #1B1E6D; }
+.frame .chrome { display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.9rem; background: #ECEAF5; }
+.frame .chrome i { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #C7C4DE; }
+.frame .chrome span { margin-left: 0.7rem; background: #fff; border-radius: 6px; padding: 0.2rem 0.9rem; font: 0.72rem var(--f-mono); color: #6D6B88; }
+.mock { font-family: var(--f-body); color: #1B1E6D; }
+
+/* ---- spec callout strip under each mockup */
+.spec-strip { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; max-width: var(--wide); margin-top: 0.85rem; padding: 0.75rem 1rem; background: var(--well); border-radius: var(--r); font-size: 0.82rem; }
+.spec-strip div { display: flex; gap: 0.4rem; }
+.spec-strip dt { color: var(--muted); }
+.spec-strip dd { margin: 0; font-weight: 600; font-family: var(--f-mono); font-size: 0.8rem; }
+
+/* ====== NAVBAR / ANNOUNCEMENT ====== */
+.mk-announce { background: #1B1E6D; color: #fff; font: 600 0.78rem var(--f-body); padding: 0.5rem 1.2rem; display: flex; align-items: center; justify-content: center; gap: 0.6rem; text-align: center; }
+.mk-announce b { color: #F19428; }
+.mk-announce .x { margin-left: 0.8rem; opacity: 0.6; font-family: var(--f-mono); }
+.mk-nav { display: flex; align-items: center; gap: 1.5rem; padding: 0.8rem 1.4rem; border-bottom: 1px solid #ECEAF5; position: relative; }
+.mk-logo { display: flex; align-items: center; gap: 0.5rem; font: 800 1.05rem var(--f-display); color: #1B1E6D; flex: none; }
+.mk-logo .mark { width: 1.9rem; height: 1.9rem; border-radius: 50%; background: #2F38EB; display: grid; place-items: center; }
+.mk-logo .mark svg { width: 1.05rem; height: 1.05rem; color: #fff; }
+.mk-links { display: flex; gap: 1.6rem; font: 600 0.88rem var(--f-body); color: #1B1E6D; }
+.mk-links a { position: relative; padding: 0.3rem 0; color: inherit; text-decoration: none; }
+.mk-links a.open::after { content: ""; position: absolute; left: 0; right: 0; bottom: -0.25rem; height: 2px; background: #F19428; }
+.mk-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
+.mk-search { display: flex; align-items: center; gap: 0.4rem; background: #F4F1FD; border-radius: 999px; padding: 0.4rem 0.9rem; font-size: 0.8rem; color: #6D6B88; min-width: 11rem; }
+.mk-loc { display: flex; align-items: center; gap: 0.3rem; font: 500 0.8rem var(--f-body); color: #1B1E6D; white-space: nowrap; }
+.mk-loc b { color: #6D6B88; font-weight: 400; }
+.mk-icon { width: 2.2rem; height: 2.2rem; border-radius: 50%; display: grid; place-items: center; position: relative; color: #1B1E6D; background: #F4F1FD; flex: none; }
+.mk-icon svg { width: 1.1rem; height: 1.1rem; }
+.mk-icon b { position: absolute; top: -0.3rem; right: -0.3rem; background: #F19428; color: #1B1E6D; font: 700 0.62rem var(--f-mono); border-radius: 999px; padding: 0 0.3rem; }
+.mega { position: absolute; top: 100%; left: 1.4rem; right: 1.4rem; margin-top: 0; background: #fff; border: 1px solid #ECEAF5; border-top: 0; border-radius: 0 0 12px 12px; box-shadow: 0 24px 40px -20px rgba(27,30,109,0.25); display: grid; grid-template-columns: 1fr 1fr 14rem; gap: 1.5rem; padding: 1.5rem; z-index: 5; }
+.mega h5 { font: 700 0.7rem var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: #6D6B88; margin-bottom: 0.6rem; }
+.mega ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; font-size: 0.85rem; }
+.mega ul a { color: #1B1E6D; text-decoration: none; }
+.mega .feat { background: #F4F1FD; border-radius: 10px; padding: 0.9rem; display: grid; gap: 0.5rem; }
+.mega .feat .ph { background: #E4E4E9; border-radius: 8px; height: 5rem; display: grid; place-items: center; color: #6D6B88; font-size: 0.68rem; text-align: center; padding: 0.4rem; }
+.mega .feat b { font: 700 0.82rem var(--f-display); color: #1B1E6D; }
+
+/* ====== HERO SLIDER ====== */
+.hero-slide { position: relative; min-height: 20rem; display: flex; align-items: center; padding: 2.5rem 2.75rem; overflow: hidden; }
+.hero-slide .hc { position: relative; z-index: 1; max-width: 26rem; }
+.hero-slide .kicker { font: 700 0.72rem var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; }
+.hero-slide h3 { font: 800 clamp(1.5rem,3vw,2.1rem)/1.12 var(--f-display); letter-spacing: -0.02em; margin-block: 0.6rem 0.8rem; }
+.hero-slide p { font-size: 0.95rem; max-width: 24rem; }
+.hero-slide .cta-row { display: flex; gap: 0.7rem; margin-top: 1.3rem; flex-wrap: wrap; }
+.hero-slide .art { position: absolute; right: -2rem; bottom: -2rem; width: 18rem; height: 18rem; opacity: 0.9; }
+.hero-pharmacy { background: linear-gradient(120deg, #1B1E6D, #2F38EB 130%); color: #fff; }
+.hero-pharmacy .kicker { color: #F19428; }
+.hero-pharmacy p { color: #D5D6F2; }
+.hero-vet { background: linear-gradient(120deg, #F4F1FD, #E4DEFA); color: #1B1E6D; }
+.hero-vet .kicker { color: #5A4CB0; }
+.hero-vet p { color: #4A4870; }
+.hero-market { background: linear-gradient(120deg, #F19428, #F3AD55); color: #1B1E6D; }
+.hero-market .kicker { color: #1B1E6D; opacity: 0.7; }
+.hero-market p { color: #3A2C0F; }
+.dots-row { display: flex; align-items: center; justify-content: center; gap: 1.4rem; padding: 0.9rem; background: #F8F7FC; }
+.dot-group { display: flex; gap: 0.3rem; align-items: center; }
+.dot-group span { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #D7D4E8; }
+.dot-group span.on { background: #1B1E6D; width: 1.1rem; border-radius: 999px; }
+.dot-group .gl { font: 600 0.62rem var(--f-mono); color: #8886A8; margin-right: 0.35rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.arrow { width: 2.1rem; height: 2.1rem; border-radius: 50%; background: rgba(255,255,255,0.22); backdrop-filter: blur(2px); display: grid; place-items: center; position: absolute; top: 50%; transform: translateY(-50%); color: #fff; z-index: 2; }
+
+/* ====== THREE-PILLAR ====== */
+.pillars { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1.1rem; }
+.pillar { border-radius: 16px; padding: 1.75rem 1.5rem; display: grid; gap: 0.7rem; position: relative; transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.pillar .picon { width: 3rem; height: 3rem; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,0.18); }
+.pillar .picon svg { width: 1.6rem; height: 1.6rem; }
+.pillar h4 { font-size: 1.2rem; }
+.pillar p { font-size: 0.85rem; }
+.pillar .plink { font: 600 0.82rem var(--f-body); display: inline-flex; align-items: center; gap: 0.3rem; margin-top: 0.3rem; }
+.pillar.ph { background: #1B1E6D; color: #fff; }
+.pillar.ph p { color: #C7C9F0; }
+.pillar.vt { background: #F4F1FD; color: #1B1E6D; }
+.pillar.vt .picon { background: #DCD4F6; color: #5A4CB0; }
+.pillar.vt p { color: #5A5884; }
+.pillar.sm { background: #F19428; color: #1B1E6D; }
+.pillar.sm .picon { background: rgba(27,30,109,0.14); color: #1B1E6D; }
+.pillar.sm p { color: #5C3F0E; }
+.pillar.hover-demo { transform: translateY(-6px); box-shadow: 0 20px 36px -16px rgba(27,30,109,0.35); }
+
+/* ====== LOCATION FINDER ====== */
+.locate { display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.25rem; }
+.locate .map { background: #E9ECF7; border-radius: 12px; min-height: 18rem; position: relative; overflow: hidden; }
+.locate .map .road { position: absolute; background: #D3D8EC; }
+.pin { position: absolute; width: 1.6rem; height: 1.6rem; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(27,30,109,0.35); }
+.pin.sel { background: #2F38EB; }
+.pin i { transform: rotate(45deg); width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #fff; }
+.loc-card { background: #fff; border: 1px solid #ECEAF5; border-radius: 10px; padding: 0.9rem 1rem; display: grid; gap: 0.4rem; }
+.loc-card.sel { border-color: #2F38EB; box-shadow: 0 0 0 1px #2F38EB inset; }
+.loc-card b { font: 700 0.9rem var(--f-display); }
+.loc-card .svc { display: flex; gap: 0.3rem; flex-wrap: wrap; margin: 0.15rem 0; }
+.loc-card .meta-row { font-size: 0.76rem; color: #6D6B88; }
+.loc-card .btns { display: flex; gap: 0.5rem; margin-top: 0.3rem; }
+
+/* ====== PRODUCT CAROUSEL ====== */
+.pcarousel { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 0.3rem; }
+.pcard { flex: 0 0 11.5rem; border: 1px solid #ECEAF5; border-radius: 12px; overflow: hidden; background: #fff; }
+.pcard .thumb { height: 7.5rem; background: #F4F1FD; display: grid; place-items: center; color: #6D6B88; font-size: 0.7rem; position: relative; }
+.pcard .badge { position: absolute; top: 0.4rem; left: 0.4rem; background: #1E7F46; color: #fff; font: 600 0.6rem var(--f-mono); padding: 0.1rem 0.4rem; border-radius: 4px; }
+.pcard .body { padding: 0.7rem 0.75rem 0.85rem; display: grid; gap: 0.3rem; }
+.pcard .name { font: 600 0.82rem/1.3 var(--f-body); }
+.pcard .branch { font-size: 0.68rem; color: #6D6B88; }
+.pcard .row { display: flex; align-items: center; justify-content: space-between; margin-top: 0.2rem; }
+.pcard .price { font: 700 0.9rem var(--f-body); font-variant-numeric: tabular-nums; }
+.qadd { width: 1.9rem; height: 1.9rem; border-radius: 50%; background: #1B1E6D; color: #fff; display: grid; place-items: center; font-size: 1rem; }
+.skeleton { position: relative; overflow: hidden; background: #ECEAF5; }
+.skeleton::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent); transform: translateX(-100%); animation: shimmer 1.4s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* ====== TRUST STRIP / VET GRID ====== */
+.trust-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; border-top: 1px solid #ECEAF5; border-bottom: 1px solid #ECEAF5; }
+.trust-row > div { padding: 1.25rem 1rem; display: grid; justify-items: center; gap: 0.5rem; text-align: center; border-left: 1px solid #ECEAF5; }
+.trust-row > div:first-child { border-left: 0; }
+.trust-row svg { width: 1.7rem; height: 1.7rem; color: #1B1E6D; }
+.trust-row b { font: 700 0.8rem var(--f-display); }
+.trust-row span { font-size: 0.72rem; color: #6D6B88; }
+.vet-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 0.8rem; }
+.vcard { border: 1px solid #ECEAF5; border-radius: 12px; padding: 1rem 0.9rem; display: grid; gap: 0.4rem; background: #fff; }
+.vcard .vic { width: 2.4rem; height: 2.4rem; border-radius: 8px; background: #F4F1FD; color: #5A4CB0; display: grid; place-items: center; }
+.vcard .vic svg { width: 1.3rem; height: 1.3rem; }
+.vcard b { font: 700 0.85rem var(--f-display); }
+.vcard span.desc { font-size: 0.72rem; color: #6D6B88; }
+.vcard .price { font: 700 0.78rem var(--f-mono); color: #1B1E6D; margin-top: 0.2rem; }
+.vcard .book { margin-top: 0.3rem; font: 600 0.74rem var(--f-body); background: #5A4CB0; color: #fff; border-radius: 999px; padding: 0.4rem 0; text-align: center; }
+
+/* ====== PROMO BANNER / TESTIMONIALS ====== */
+.promo { background: linear-gradient(120deg, #1B1E6D, #2F38EB); border-radius: 14px; padding: 1.5rem 1.75rem; display: flex; align-items: center; gap: 1.5rem; color: #fff; flex-wrap: wrap; }
+.promo .pbadge { background: #F19428; color: #1B1E6D; font: 700 0.68rem var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; padding: 0.25rem 0.6rem; border-radius: 999px; }
+.promo h4 { font-size: 1.3rem; margin: 0.5rem 0 0.2rem; }
+.promo p { color: #C7C9F0; font-size: 0.85rem; max-width: 20rem; }
+.countdown { display: flex; gap: 0.5rem; margin-left: auto; }
+.countdown div { background: rgba(255,255,255,0.14); border-radius: 8px; padding: 0.5rem 0.65rem; text-align: center; min-width: 3.2rem; }
+.countdown b { display: block; font: 700 1.2rem var(--f-mono); }
+.countdown span { font-size: 0.6rem; color: #C7C9F0; letter-spacing: 0.05em; text-transform: uppercase; }
+.tcards { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+.tcard { border: 1px solid #ECEAF5; border-radius: 12px; padding: 1.1rem; background: #fff; display: grid; gap: 0.6rem; }
+.tcard .stars { color: #F19428; font-size: 0.85rem; letter-spacing: 0.1em; }
+.tcard p.quote { font-size: 0.86rem; color: #2A2950; line-height: 1.5; }
+.tcard .who { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.3rem; }
+.tcard .av { width: 2.1rem; height: 2.1rem; border-radius: 50%; background: #F4F1FD; color: #5A4CB0; display: grid; place-items: center; font: 700 0.72rem var(--f-display); }
+.tcard .who b { font: 700 0.8rem var(--f-display); display: block; }
+.tcard .who span { font-size: 0.68rem; color: #6D6B88; }
+.verified { display: inline-flex; align-items: center; gap: 0.25rem; font: 600 0.64rem var(--f-body); color: #1E7F46; }
+
+/* ====== NEWSLETTER / FOOTER ====== */
+.newsletter { background: #F4F1FD; border-radius: 14px; padding: 2rem; display: grid; gap: 1rem; justify-items: center; text-align: center; }
+.newsletter h4 { font-size: 1.3rem; color: #1B1E6D; }
+.newsletter p { color: #5A5884; font-size: 0.88rem; max-width: 28rem; }
+.ne-form { display: flex; gap: 0.5rem; max-width: 24rem; width: 100%; }
+.ne-form input { flex: 1; border-radius: 999px; border: 1px solid #D7D4E8; padding: 0.6rem 1rem; font: 0.85rem var(--f-body); }
+.ne-form button { border-radius: 999px; background: #1B1E6D; color: #fff; border: 0; padding: 0.6rem 1.3rem; font: 600 0.85rem var(--f-body); }
+.storebadges { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+.storebadges span { border: 1px solid #D7D4E8; border-radius: 8px; padding: 0.5rem 0.9rem; font: 600 0.72rem var(--f-body); color: #6D6B88; background: #fff; }
+.mfooter { background: #14165A; color: #D5D6F2; padding: 2.5rem 2rem 1.25rem; display: grid; gap: 2rem; }
+.mfooter .cols { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.1fr 1fr; gap: 1.5rem; }
+.mfooter h6 { font: 700 0.68rem var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: #8F91C9; margin-bottom: 0.7rem; }
+.mfooter ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; font-size: 0.82rem; }
+.mfooter ul a { color: #D5D6F2; text-decoration: none; }
+.mfooter .flogo { display: flex; align-items: center; gap: 0.5rem; font: 800 1.05rem var(--f-display); color: #fff; margin-bottom: 0.5rem; }
+.mfooter .flogo .mark { width: 1.8rem; height: 1.8rem; border-radius: 50%; background: #2F38EB; display: grid; place-items: center; }
+.mfooter .flogo .mark svg { width: 1rem; height: 1rem; color: #fff; }
+.mfooter .fdesc { font-size: 0.8rem; color: #9FA1D4; max-width: 18rem; }
+.social-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+.social-row span { border: 1px solid #383A88; border-radius: 999px; padding: 0.3rem 0.7rem; font: 600 0.68rem var(--f-body); color: #D5D6F2; }
+.pay-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.pay-row span { background: #fff; color: #1B1E6D; border-radius: 6px; padding: 0.3rem 0.6rem; font: 700 0.68rem var(--f-body); }
+.fbottom { border-top: 1px solid #2A2C80; padding-top: 1.1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem; font-size: 0.74rem; color: #8F91C9; }
+.fbottom .badge-pay { background: rgba(255,255,255,0.08); border-radius: 999px; padding: 0.25rem 0.7rem; }
+
+/* ====== COMPONENT LIBRARY ====== */
+.cl-row { display: flex; flex-wrap: wrap; gap: 0.9rem; align-items: center; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 999px; font: 600 0.88rem var(--f-body); border: 0; padding: 0.7rem 1.3rem; cursor: pointer; transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), background var(--dur) var(--ease); }
+.btn-primary { background: #1B1E6D; color: #fff; }
+.btn-primary:hover, .btn-primary.st-hover { background: #262A85; box-shadow: 0 8px 18px -8px rgba(27,30,109,0.5); }
+.btn-primary.st-active { background: #141655; transform: scale(0.97); }
+.btn-primary.st-disabled { background: #A0A0AA; cursor: not-allowed; }
+.btn-primary.st-loading { background: #262A85; color: transparent; position: relative; }
+.btn-primary.st-loading::after { content: ""; position: absolute; width: 1rem; height: 1rem; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn-amber { background: #F19428; color: #1B1E6D; }
+.btn-amber:hover, .btn-amber.st-hover { background: #D97F18; box-shadow: 0 8px 18px -8px rgba(217,127,24,0.5); }
+.btn-outline { background: transparent; color: #1B1E6D; box-shadow: inset 0 0 0 1.5px #1B1E6D; }
+.btn-outline:hover, .btn-outline.st-hover { background: #EEEFF8; }
+.btn-ghost { background: transparent; color: #1B1E6D; padding: 0.7rem 0.9rem; }
+.btn-ghost:hover, .btn-ghost.st-hover { background: #F4F1FD; }
+.cl-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1.1rem; }
+.cl-label { font: 600 0.68rem var(--f-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.6rem; }
+.in-field { display: grid; gap: 0.3rem; }
+.in-field label { font: 600 0.75rem var(--f-body); color: var(--ink); }
+.in-field input { border-radius: 8px; border: 1.5px solid #D7D4E8; padding: 0.6rem 0.8rem; font: 0.88rem var(--f-body); background: #fff; color: #1B1E6D; }
+.in-field input.st-focus { border-color: #2F38EB; box-shadow: 0 0 0 3px #EEF0FE; }
+.in-field input.st-error { border-color: #C62828; }
+.in-field input.st-disabled { background: #F4F4F7; color: #A0A0AA; }
+.in-field .err { font-size: 0.74rem; color: #C62828; }
+.badges-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.b-pill { font: 600 0.72rem var(--f-body); padding: 0.22rem 0.65rem; border-radius: 999px; }
+.spacing-ruler { display: grid; gap: 0.5rem; }
+.sp-row { display: flex; align-items: center; gap: 0.8rem; }
+.sp-row .bar { height: 1rem; background: #2F38EB; border-radius: 3px; }
+.sp-row .lbl { font: 600 0.78rem var(--f-mono); width: 5.5rem; color: var(--muted); }
+.sp-row .px { font: 500 0.78rem var(--f-mono); color: var(--muted); width: 3.5rem; }
+.bp-row { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.8rem; }
+.bp-card { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.bp-card .bp-h { background: var(--rb-navy); color: #fff; padding: 0.5rem 0.8rem; font: 700 0.78rem var(--f-display); display: flex; justify-content: space-between; }
+.bp-card .bp-b { background: var(--well); padding: 0.8rem; font-size: 0.8rem; display: grid; gap: 0.3rem; }
+.state-matrix { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 0.6rem; text-align: center; }
+.state-matrix > div { display: grid; gap: 0.4rem; justify-items: center; }
+.state-matrix .lbl2 { font: 600 0.68rem var(--f-mono); color: var(--muted); text-transform: uppercase; }
+
+@media (max-width: 1100px) {
+  .g3, .g4, .g5, .trust-row, .vet-grid, .tcards, .pillars, .mfooter .cols, .bp-row, .state-matrix { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .mega { grid-template-columns: 1fr 1fr; }
+  .mega .feat { display: none; }
+  .locate { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 960px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-inline: 1rem; gap: 0; }
+  .rail { display: none; }
+  .g2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .sec-head { grid-template-columns: minmax(0, 1fr); }
+  .g3, .g4, .g5, .trust-row, .vet-grid, .tcards, .pillars, .mfooter .cols, .bp-row, .state-matrix { grid-template-columns: minmax(0,1fr); }
+  .mk-links, .mk-search { display: none; }
+  .promo { flex-direction: column; align-items: flex-start; }
+  .countdown { margin-left: 0; }
+}
+</style>
+
+<div class="shell">
+<nav class="rail" aria-label="Document sections">
+  <div class="brand"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</div>
+  <div class="doctype">Homepage &amp; component spec</div>
+  <ol>
+    <li><a href="#system"><span>00</span><span>Design system basics</span></a></li>
+    <li><a href="#nav"><span>01</span><span>Announcement &amp; navbar</span></a></li>
+    <li><a href="#hero"><span>02</span><span>Hero slider</span></a></li>
+    <li><a href="#pillars"><span>03</span><span>Three-pillar access</span></a></li>
+    <li><a href="#locate"><span>04</span><span>Location finder</span></a></li>
+    <li><a href="#products"><span>05</span><span>Featured products</span></a></li>
+    <li><a href="#trust"><span>06</span><span>Trust &amp; vet services</span></a></li>
+    <li><a href="#promo"><span>07</span><span>Promotions &amp; testimonials</span></a></li>
+    <li><a href="#footer"><span>08</span><span>Newsletter &amp; footer</span></a></li>
+    <li><a href="#library"><span>09</span><span>Component library</span></a></li>
+    <li><a href="#open"><span>10</span><span>Assumptions &amp; open items</span></a></li>
+  </ol>
+  <p class="meta">Version 1.0 · October 2026<br>Companion to the <a href="../brand/robakeye-brand-guide.html">brand guide</a> and the <a href="information-architecture.html">IA spec</a></p>
+</nav>
+
+<main>
+<header class="cover">
+  <p class="eyebrow">Homepage &amp; component library · v1.0</p>
+  <h1>Robakeye homepage</h1>
+  <p>Full homepage, section by section, built in brand colour at desktop width — followed by the spacing, states and component kit a Figma file or a frontend build would need to reproduce it. Mobile-first at 375 / 768 / 1440px, WCAG AA contrast throughout.</p>
+  <dl>
+    <div><dt>Grid</dt><dd>8px base unit, 12-column, 96px max gutter</dd></div>
+    <div><dt>Motion</dt><dd>200–300ms, ease-out</dd></div>
+    <div><dt>Breakpoints</dt><dd>375 · 768 · 1440px</dd></div>
+  </dl>
+</header>
+
+<!-- ============================================================ 00 -->
+<section id="system">
+  <div class="sec-head"><div class="tab">00</div><div><h2>Design system basics</h2><p>The numbers every section below is built from. Colour and type tokens are inherited unchanged from the brand guide — this section adds what the homepage needs on top: grid, spacing scale, breakpoints, motion.</p></div></div>
+
+  <h3 class="sub">Grid</h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Desktop · 1440px</h4><ul><li>12 columns, 24px gutter</li><li>Content max-width 1200px, centred</li><li>Side margin 24px minimum, grows to fill above 1440px</li></ul></div>
+    <div class="card"><h4>Tablet · 768px</h4><ul><li>8 columns, 20px gutter</li><li>Side margin 24px</li><li>Mega-menus collapse to accordions</li></ul></div>
+    <div class="card"><h4>Mobile · 375px</h4><ul><li>4 columns, 16px gutter</li><li>Side margin 16px</li><li>All multi-column sections stack to 1 column</li></ul></div>
+  </div>
+
+  <h3 class="sub">Spacing scale <small>8px base unit</small></h3>
+  <div class="card wide">
+    <div class="spacing-ruler">
+      <div class="sp-row"><span class="lbl">space-1</span><span class="px">4px</span><div class="bar" style="width:4px"></div></div>
+      <div class="sp-row"><span class="lbl">space-2</span><span class="px">8px</span><div class="bar" style="width:8px"></div></div>
+      <div class="sp-row"><span class="lbl">space-3</span><span class="px">12px</span><div class="bar" style="width:12px"></div></div>
+      <div class="sp-row"><span class="lbl">space-4</span><span class="px">16px</span><div class="bar" style="width:16px"></div></div>
+      <div class="sp-row"><span class="lbl">space-6</span><span class="px">24px</span><div class="bar" style="width:24px"></div></div>
+      <div class="sp-row"><span class="lbl">space-8</span><span class="px">32px</span><div class="bar" style="width:32px"></div></div>
+      <div class="sp-row"><span class="lbl">space-12</span><span class="px">48px</span><div class="bar" style="width:48px"></div></div>
+      <div class="sp-row"><span class="lbl">space-16</span><span class="px">64px</span><div class="bar" style="width:64px"></div></div>
+      <div class="sp-row"><span class="lbl">space-24</span><span class="px">96px</span><div class="bar" style="width:96px"></div></div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">Component padding uses space-3/4 (12–16px). Gaps between cards in a row use space-4/6 (16–24px). Space between homepage sections uses space-16/24 (64–96px) on desktop, halved to space-8/12 (32–48px) on mobile.</p>
+
+  <h3 class="sub">Motion</h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Token</th><th>Value</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>--dur-fast</code></td><td class="num">150ms</td><td>Icon/colour micro-transitions (nav link underline, focus ring).</td></tr>
+        <tr><td><code>--dur</code></td><td class="num">220ms</td><td>Default — button and card hover, shadow, scale.</td></tr>
+        <tr><td><code>--dur-slow</code></td><td class="num">300ms</td><td>Mega-menu open/close, hero slide crossfade.</td></tr>
+        <tr><td><code>--ease</code></td><td class="num">cubic-bezier(.3,0,.2,1)</td><td>Standard ease-out — snappy start, soft landing. Applied to all of the above.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:1rem">Every transition in this spec respects <code>prefers-reduced-motion: reduce</code> — durations collapse to near-zero rather than being removed, so layout still updates, just without the animated transition.</p>
+</section>
+
+<!-- ============================================================ 01 -->
+<section id="nav">
+  <div class="sec-head"><div class="tab">01</div><div><h2>Announcement bar &amp; navbar</h2><p>The announcement bar rotates two messages on a 6.5-second interval; the navbar below it stays sticky through the rest of the page.</p></div></div>
+
+  <div class="frame">
+    <div class="mk-announce">Free delivery on orders above <b>₦15,000</b> · Flagship branch now open — full vet clinic!<span class="x">✕</span></div>
+    <div class="mk-nav mock">
+      <a class="mk-logo" href="#"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</a>
+      <div class="mk-links">
+        <a class="open">Pharmacy</a><a>Veterinary</a><a>Supermarket</a><a>Our Locations</a>
+      </div>
+      <div class="mk-right">
+        <div class="mk-search">🔍 Search medicines, pet food, groceries…</div>
+        <div class="mk-loc"><b>Delivering to:</b> Ajadi, Ologuneru ▾</div>
+        <div class="mk-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg><b>3</b></div>
+        <div class="mk-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg></div>
+      </div>
+      <div class="mega">
+        <div>
+          <h5>Shop by category</h5>
+          <ul><li><a>Pain &amp; Fever</a></li><li><a>Cold &amp; Flu</a></li><li><a>Vitamins &amp; Supplements</a></li><li><a>Baby &amp; Mother</a></li><li><a>Medical Devices</a></li></ul>
+        </div>
+        <div>
+          <h5>Get help</h5>
+          <ul><li><a>Talk to a Pharmacist</a></li><li><a>Upload Prescription</a></li><li><a>Prescription-restricted items</a></li></ul>
+        </div>
+        <div class="feat">
+          <div class="ph">Featured product photo</div>
+          <b>Multivitamin Range</b>
+          <span style="font-size:0.74rem;color:#6D6B88">From ₦2,100 <span class="sample">sample</span></span>
+        </div>
+      </div>
+    </div>
+    <div style="padding:2rem;background:#F8F7FC;text-align:center;font-size:0.8rem;color:#6D6B88">↓ page content continues below</div>
+  </div>
+
+  <div class="spec-strip">
+    <div><dt>Bar height</dt><dd>36px</dd></div>
+    <div><dt>Navbar height</dt><dd>72px</dd></div>
+    <div><dt>Logo</dt><dd>horizontal lockup, 28px tall</dd></div>
+    <div><dt>Sticky offset</dt><dd>0 (announcement scrolls away first)</dd></div>
+    <div><dt>Mega-menu delay</dt><dd>120ms open, 200ms close</dd></div>
+  </div>
+
+  <h3 class="sub">Mobile nav</h3>
+  <div class="grid g3 wide">
+    <div class="card"><h4>Layout</h4><ul><li>Hamburger left, logo centred, cart + account right — matches the brief exactly.</li><li>Search collapses to an icon that expands to a full-width overlay on tap.</li></ul></div>
+    <div class="card"><h4>Menu drawer</h4><ul><li>Slides in from the left, 85% viewport width.</li><li>Pharmacy / Veterinary / Supermarket / Our Locations as accordions, not mega-menus.</li><li>Location selector pinned above the accordion list.</li></ul></div>
+    <div class="card"><h4>Behaviour</h4><ul><li>Navbar hides on scroll-down, reappears on scroll-up — reclaims vertical space on a small screen.</li><li>Announcement bar is dismissible and the dismissal is remembered for the session.</li></ul></div>
+  </div>
+</section>
+
+<!-- ============================================================ 02 -->
+<section id="hero">
+  <div class="sec-head"><div class="tab">02</div><div><h2>Hero slider</h2><p>Eight slides across the three verticals, auto-advancing every 6–7 seconds. Dots are grouped by vertical so the customer can see where Pharmacy ends and Supermarket begins, not just "slide 5 of 8."</p></div></div>
+
+  <div class="frame">
+    <div class="hero-slide hero-pharmacy mock">
+      <div class="hc">
+        <div class="kicker">Pharmacy</div>
+        <h3>Your Trusted Pharmacy in Ibadan</h3>
+        <p>Licensed pharmacists, genuine medication, and same-day delivery across Ibadan.</p>
+        <div class="cta-row"><span class="btn btn-amber">Shop Pharmacy</span><span class="btn btn-outline" style="color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0.6)">Talk to a Pharmacist</span></div>
+      </div>
+      <svg class="art" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="95" fill="rgba(255,255,255,0.08)"/><path d="M100 36 L150 76 L150 154 L50 154 L50 76 Z" fill="rgba(241,148,40,0.25)"/></svg>
+    </div>
+    <div class="dots-row"><span class="gl">Pharmacy</span><div class="dot-group"><span class="on"></span><span></span></div><span class="gl">Veterinary</span><div class="dot-group"><span></span><span></span></div><span class="gl">Supermarket</span><div class="dot-group"><span></span><span></span><span></span><span></span></div></div>
+  </div>
+
+  <div class="spec-strip">
+    <div><dt>Auto-advance</dt><dd>6.5s</dd></div>
+    <div><dt>Transition</dt><dd>crossfade, 300ms</dd></div>
+    <div><dt>Pause on</dt><dd>hover / focus / touch</dd></div>
+    <div><dt>Min height</dt><dd>420px desktop · 320px mobile</dd></div>
+  </div>
+
+  <h3 class="sub">All 8 slides</h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>#</th><th>Vertical</th><th>Headline</th><th>Background</th><th>CTA(s)</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span></td><td>Your Trusted Pharmacy in Ibadan</td><td>Navy → blue gradient, pharmacist photo right</td><td>Shop Pharmacy · Talk to a Pharmacist</td></tr>
+        <tr><td class="num">2</td><td><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span></td><td>Prescription? We've Got You Covered</td><td>Navy gradient, trust badge row</td><td>Upload Prescription</td></tr>
+        <tr><td class="num">3</td><td><span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep)">Veterinary</span></td><td>Complete Pet Care at Our Flagship Clinic</td><td>Lavender gradient, owner + pet photo</td><td>Book a Vet Visit</td></tr>
+        <tr><td class="num">4</td><td><span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep)">Veterinary</span></td><td>Everything Your Pet Needs</td><td>Lavender, pet product grid preview</td><td>Shop Pet Supplies</td></tr>
+        <tr><td class="num">5</td><td><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></td><td>Fresh Groceries, Delivered Fast</td><td>Amber gradient, produce photography</td><td>Shop Groceries</td></tr>
+        <tr><td class="num">6</td><td><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></td><td>This Week's Hot Deals &amp; Combos</td><td>Amber, bundle pricing cards</td><td>See This Week's Deals</td></tr>
+        <tr><td class="num">7</td><td><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></td><td>Everything Under One Roof</td><td>Amber, category showcase (household, beverages, snacks)</td><td>Browse Supermarket</td></tr>
+        <tr><td class="num">8</td><td><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></td><td>Visit Our New Flagship Super-Store</td><td>Sheu branch storefront photography</td><td>Get Directions</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note" style="margin-top:1rem"><strong>Reduced motion.</strong> With <code>prefers-reduced-motion: reduce</code>, auto-advance stops entirely — the slider waits for the manual arrows or dots. This is stricter than just shortening the crossfade, because an auto-advancing carousel is a known vestibular-motion trigger, not just a stylistic animation.</p>
+</section>
+
+<!-- ============================================================ 03 -->
+<section id="pillars">
+  <div class="sec-head"><div class="tab">03</div><div><h2>Three-pillar quick access</h2><p>The first explicit choice a customer makes on the page: which of the three businesses they came for. Pharmacy shows its hover-lifted state for reference.</p></div></div>
+
+  <div class="frame"><div class="mock" style="padding:1.75rem">
+    <div class="pillars">
+      <div class="pillar ph hover-demo">
+        <div class="picon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="4" rx="1"/><path d="M7 6v13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/><path d="M12 10v5M9.5 12.5h5"/></svg></div>
+        <h4>Order Medications</h4>
+        <p>OTC and prescription medicines, delivered or ready for pickup.</p>
+        <span class="plink">Shop Pharmacy →</span>
+      </div>
+      <div class="pillar vt">
+        <div class="picon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13c-3 0-6 3-6 5.5 0 1.5 1.2 2.5 2.7 2.5 1.2 0 2.1-.6 3.3-.6s2.1.6 3.3.6c1.5 0 2.7-1 2.7-2.5 0-2.5-3-5.5-6-5.5z"/><circle cx="5" cy="10.5" r="1.8"/><circle cx="9.3" cy="5.5" r="1.8"/><circle cx="14.7" cy="5.5" r="1.8"/><circle cx="19" cy="10.5" r="1.8"/></svg></div>
+        <h4>Book Vet Visit / Shop Pet Care</h4>
+        <p>Checkups, vaccinations, grooming and pet supplies at our flagship clinic.</p>
+        <span class="plink">Visit Veterinary →</span>
+      </div>
+      <div class="pillar sm">
+        <div class="picon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h3l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg></div>
+        <h4>Shop Groceries &amp; More</h4>
+        <p>Fresh produce, household essentials and everyday items.</p>
+        <span class="plink">Shop Supermarket →</span>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="spec-strip">
+    <div><dt>Card radius</dt><dd>16px</dd></div>
+    <div><dt>Card padding</dt><dd>28px / 24px</dd></div>
+    <div><dt>Hover</dt><dd>translateY(−6px) + shadow, 220ms</dd></div>
+    <div><dt>Icon tile</dt><dd>48×48px, 12px radius</dd></div>
+    <div><dt>Gap between cards</dt><dd>16–24px, stacks on mobile</dd></div>
+  </div>
+</section>
+
+<!-- ============================================================ 04 -->
+<section id="locate">
+  <div class="sec-head"><div class="tab">04</div><div><h2>Location finder widget</h2><p>Map on the left, branch cards on the right. Selecting a pin highlights its card and vice versa — this is also where the IA spec's branch-matching logic (section 02 of that document) first becomes visible to the customer.</p></div></div>
+
+  <div class="frame"><div class="mock" style="padding:1.75rem">
+    <h3 style="font-size:1.4rem;margin-bottom:1rem">Find Your Nearest Robakeye</h3>
+    <div class="locate">
+      <div class="map" aria-hidden="true">
+        <div class="road" style="top:40%;left:0;right:0;height:10px;transform:rotate(-6deg)"></div>
+        <div class="road" style="top:0;bottom:0;left:55%;width:8px;transform:rotate(12deg)"></div>
+        <div class="pin" style="top:30%;left:20%;background:#1B1E6D"><i></i></div>
+        <div class="pin" style="top:58%;left:66%;background:#1B1E6D"><i></i></div>
+        <div class="pin sel" style="top:40%;left:42%"><i></i></div>
+      </div>
+      <div class="grid" style="gap:0.6rem">
+        <div class="loc-card sel">
+          <b>Sheu · Flagship</b>
+          <div class="svc"><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span><span class="tag" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep)">Veterinary</span><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></div>
+          <div class="meta-row">Along Ologuneru-Eruwa Road, Sheu Bus-stop · 7am–9pm daily <span class="sample">sample hours</span></div>
+          <div class="btns"><span class="btn btn-outline" style="padding:0.4rem 0.8rem;font-size:0.76rem">Get Directions</span><span class="btn btn-primary" style="padding:0.4rem 0.8rem;font-size:0.76rem">Shop This Branch</span></div>
+        </div>
+        <div class="loc-card">
+          <b>Ajadi</b>
+          <div class="svc"><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></div>
+          <div class="meta-row">New Eleyele Road, Ajadi Bus-stop · 7am–9pm daily</div>
+        </div>
+        <div class="loc-card">
+          <b>Ojoo</b>
+          <div class="svc"><span class="tag" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span><span class="tag" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Supermarket</span></div>
+          <div class="meta-row">Bethel House, Onila Aro Bus-stop · 7am–9pm daily</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <p class="note" style="margin-top:1rem">The map embed is a placeholder shape here — in build, each pin's info window and each card share one data source, so updating branch hours in one place updates both. Store hours shown are samples; confirm real hours per branch.</p>
+</section>
+
+<!-- ============================================================ 05 -->
+<section id="products">
+  <div class="sec-head"><div class="tab">05</div><div><h2>Featured products carousel</h2><p>Horizontally scrollable, snap-to-card. The skeleton state below is what renders while the branch-matched catalogue (IA spec, section 02) is still resolving.</p></div></div>
+
+  <div class="frame"><div class="mock" style="padding:1.75rem">
+    <h3 style="font-size:1.4rem;margin-bottom:1rem">Trending This Week</h3>
+    <div class="pcarousel">
+      <div class="pcard"><div class="thumb"><span class="badge">Ajadi · 2.4km</span>Rice, 5kg</div><div class="body"><div class="name">Long-grain rice, 5kg</div><div class="branch">Available at Branch A</div><div class="row"><span class="price">₦11,500</span><span class="qadd">+</span></div></div></div>
+      <div class="pcard"><div class="thumb"><span class="badge">Sheu · 7.1km</span>Dog food</div><div class="body"><div class="name">Adult dog food, 3kg</div><div class="branch">Available at Branch C</div><div class="row"><span class="price">₦9,800</span><span class="qadd">+</span></div></div></div>
+      <div class="pcard"><div class="thumb"><span class="badge">Ajadi · 2.4km</span>Tomatoes</div><div class="body"><div class="name">Fresh tomatoes, 1kg</div><div class="branch">Available at Branch A</div><div class="row"><span class="price">₦2,400</span><span class="qadd">+</span></div></div></div>
+      <div class="pcard"><div class="thumb skeleton"></div><div class="body"><div class="skeleton" style="height:0.9rem;border-radius:4px;width:80%"></div><div class="skeleton" style="height:0.7rem;border-radius:4px;width:50%"></div><div class="row"><div class="skeleton" style="height:1rem;width:3.5rem;border-radius:4px"></div></div></div></div>
+    </div>
+  </div></div>
+
+  <div class="spec-strip">
+    <div><dt>Card width</dt><dd>184px</dd></div>
+    <div><dt>Scroll</dt><dd>snap-x, momentum on touch</dd></div>
+    <div><dt>Quick-add</dt><dd>32px circular, no page navigation</dd></div>
+    <div><dt>Skeleton shimmer</dt><dd>1.4s loop, respects reduced-motion</dd></div>
+  </div>
+</section>
+
+<!-- ============================================================ 06 -->
+<section id="trust">
+  <div class="sec-head"><div class="tab">06</div><div><h2>Trust strip &amp; veterinary services</h2><p>The pharmacy trust strip is deliberately plain — four claims, four icons, no imagery. The vet grid is the denser, price-forward version of the same idea.</p></div></div>
+
+  <div class="frame"><div class="mock">
+    <div class="trust-row">
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg><b>Licensed Pharmacists</b><span>PCN-registered staff on every shift</span></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="4" rx="1"/><path d="M7 6v13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6"/><path d="M12 10v5M9.5 12.5h5"/></svg><b>Genuine Medications</b><span>Sourced from licensed distributors</span></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><b>Fast Prescription Processing</b><span>Most orders reviewed within the hour</span></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11V8a8 8 0 0 1 16 0v3"/><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="16" r="1.6"/></svg><b>Confidential Consultations</b><span>Your health questions stay private</span></div>
+    </div>
+    <div style="padding:1.75rem">
+      <h3 style="font-size:1.4rem;margin-bottom:1rem">Veterinary Services</h3>
+      <div class="vet-grid">
+        <div class="vcard"><div class="vic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5C6 16.6 3 13.5 3 9.7a4.6 4.6 0 0 1 9-1.4 4.6 4.6 0 0 1 9 1.4c0 3.8-3 6.9-9 10.8z"/></svg></div><b>Vaccination</b><span class="desc">Core &amp; booster shots for dogs and cats</span><span class="price">From ₦6,500 <span class="sample">sample</span></span><span class="book">Book Now</span></div>
+        <div class="vcard"><div class="vic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h2M10 3h2"/><path d="M5 3v5a4 4 0 0 0 8 0V3"/><path d="M9 12v3a5 5 0 0 0 10 0v-2"/><circle cx="19" cy="11" r="2"/></svg></div><b>General Checkup</b><span class="desc">Full physical exam and health review</span><span class="price">From ₦5,000</span><span class="book">Book Now</span></div>
+        <div class="vcard"><div class="vic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M22 12h-3M5 12H2M18.4 5.6l-2 2M7.6 16.4l-2 2M18.4 18.4l-2-2M7.6 7.6l-2-2"/></svg></div><b>Grooming</b><span class="desc">Bath, trim and nail care</span><span class="price">From ₦4,000</span><span class="book">Book Now</span></div>
+        <div class="vcard"><div class="vic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3.5a4.95 4.95 0 0 1 7 7l-7 7a4.95 4.95 0 0 1-7-7z"/></svg></div><b>Surgery</b><span class="desc">Routine and soft-tissue procedures</span><span class="price">From ₦25,000</span><span class="book">Book Now</span></div>
+        <div class="vcard" style="border-color:#C62828"><div class="vic" style="background:var(--rb-alert-50);color:#C62828"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 10-13h-6z"/></svg></div><b>Emergency Care</b><span class="desc">Flagship branch, call ahead</span><span class="price" style="color:#C62828">Call now</span><span class="book" style="background:#C62828">Call Branch</span></div>
+      </div>
+    </div>
+  </div></div>
+  <p class="note" style="margin-top:1rem">Emergency Care is visually distinct — alert colour, "Call now" instead of a price, "Call Branch" instead of "Book Now" — because it should never funnel into the same slot-picker as a routine checkup (see the IA spec's vet booking flow, section 04).</p>
+</section>
+
+<!-- ============================================================ 07 -->
+<section id="promo">
+  <div class="sec-head"><div class="tab">07</div><div><h2>Promotions &amp; testimonials</h2><p>A single urgent banner, then social proof — in that order, because the banner drives the next action and testimonials build the trust that supports it.</p></div></div>
+
+  <div class="promo wide">
+    <div>
+      <span class="pbadge">Limited time</span>
+      <h4>Baby Care Combo — Save 15%</h4>
+      <p>Diapers, formula and baby wash bundled together, this week only.</p>
+    </div>
+    <div class="countdown">
+      <div><b>02</b><span>Days</span></div><div><b>14</b><span>Hrs</span></div><div><b>36</b><span>Min</span></div><div><b>09</b><span>Sec</span></div>
+    </div>
+  </div>
+
+  <h3 class="sub">Customer testimonials</h3>
+  <div class="tcards wide">
+    <div class="tcard"><div class="stars">★★★★★</div><p class="quote">"The pharmacist called me back within 20 minutes of my upload. Delivery came the same evening." <span class="sample">sample</span></p><div class="who"><div class="av">AO</div><div><b>A. Okafor</b><span>Ologuneru</span></div></div><span class="verified">✓ Verified purchase</span></div>
+    <div class="tcard"><div class="stars">★★★★★</div><p class="quote">"Took my cat for her first checkup at the flagship — calm, clean, friendly staff." <span class="sample">sample</span></p><div class="who"><div class="av">TB</div><div><b>T. Balogun</b><span>Ojoo</span></div></div><span class="verified">✓ Verified purchase</span></div>
+    <div class="tcard"><div class="stars">★★★★☆</div><p class="quote">"Groceries arrived fast and the app told me exactly which branch it was coming from." <span class="sample">sample</span></p><div class="who"><div class="av">FA</div><div><b>F. Adeyemi</b><span>Ajadi</span></div></div><span class="verified">✓ Verified purchase</span></div>
+  </div>
+  <p class="note" style="margin-top:1rem">Names, initials and quotes above are fictional samples for layout only — swap in real reviews (with consent) before launch, never synthetic ones presented as real.</p>
+</section>
+
+<!-- ============================================================ 08 -->
+<section id="footer">
+  <div class="sec-head"><div class="tab">08</div><div><h2>Newsletter &amp; footer</h2><p>The last two sections on the page — one more conversion moment, then the full site map in miniature.</p></div></div>
+
+  <div class="newsletter wide">
+    <h4>Get Health Tips &amp; Exclusive Deals</h4>
+    <p>Pharmacy advice, pet care reminders and supermarket deals — only what you opt into, unsubscribe anytime.</p>
+    <div class="ne-form"><input placeholder="you@email.com" aria-label="Email address"><button class="btn-primary" style="border-radius:999px">Subscribe</button></div>
+    <div class="storebadges"><span>📱 App Store — coming soon</span><span>▶ Google Play — coming soon</span></div>
+  </div>
+
+  <div class="frame wide" style="margin-top:1.5rem">
+    <div class="mfooter">
+      <div class="cols">
+        <div>
+          <div class="flogo"><span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Robakeye</div>
+          <p class="fdesc">Pharmacy, veterinary care and everyday groceries across three Ibadan locations.</p>
+          <div class="social-row"><span>Instagram</span><span>Facebook</span><span>X</span><span>WhatsApp</span><span>TikTok</span></div>
+        </div>
+        <div><h6>Quick Links</h6><ul><li><a>About Us</a></li><li><a>Careers</a></li><li><a>Blog</a></li><li><a>FAQ</a></li><li><a>Contact</a></li></ul></div>
+        <div><h6>Customer Service</h6><ul><li><a>Track Order</a></li><li><a>Returns Policy</a></li><li><a>Delivery Info</a></li><li><a>Privacy Policy</a></li><li><a>Terms of Service</a></li></ul></div>
+        <div><h6>Our Locations</h6><ul><li>Ajadi — 0XXX XXX XXXX</li><li>Ojoo — 0XXX XXX XXXX</li><li>Sheu (Flagship) — 0XXX XXX XXXX</li></ul></div>
+        <div><h6>We Accept</h6><div class="pay-row"><span>Paystack</span><span>Visa</span><span>Mastercard</span><span>Verve</span><span>Bank Transfer</span></div></div>
+      </div>
+      <div class="fbottom">
+        <span>© 2026 Robakeye. All rights reserved.</span>
+        <span class="badge-pay">🔒 Powered by Paystack</span>
+        <span>English (NG) · ₦ NGN ▾</span>
+      </div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:1rem">Payment and social entries are represented as plain text/wordmark chips, not the providers' trademarked artwork — swap in the real logo files (with each provider's usage guidelines) when this goes to Figma.</p>
+</section>
+
+<!-- ============================================================ 09 -->
+<section id="library">
+  <div class="sec-head"><div class="tab">09</div><div><h2>Component library</h2><p>The reusable kit. Every component here is used at least once above — this section is the states reference the homepage mockups don't show on their own.</p></div></div>
+
+  <h3 class="sub">Buttons</h3>
+  <div class="cl-card wide">
+    <span class="cl-label">Primary</span>
+    <div class="cl-row"><span class="btn btn-primary">Default</span><span class="btn btn-primary st-hover">Hover</span><span class="btn btn-primary st-active">Active</span><span class="btn btn-primary st-loading">Loading</span><span class="btn btn-primary st-disabled">Disabled</span></div>
+    <span class="cl-label" style="margin-top:1rem">Amber (supermarket)</span>
+    <div class="cl-row"><span class="btn btn-amber">Default</span><span class="btn btn-amber st-hover">Hover</span></div>
+    <span class="cl-label" style="margin-top:1rem">Outline &amp; ghost</span>
+    <div class="cl-row"><span class="btn btn-outline">Outline</span><span class="btn btn-outline st-hover">Hover</span><span class="btn btn-ghost">Ghost</span><span class="btn btn-ghost st-hover">Hover</span></div>
+  </div>
+  <div class="tbl wide" style="margin-top:0.85rem">
+    <table>
+      <thead><tr><th>State</th><th>Change from default</th></tr></thead>
+      <tbody>
+        <tr><td>Hover</td><td>Background darkens one step, shadow appears, 220ms ease-out.</td></tr>
+        <tr><td>Active / pressed</td><td>Background darkens a second step, <code>scale(0.97)</code>, no shadow — reads as "pushed in."</td></tr>
+        <tr><td>Loading</td><td>Label fades to transparent, a spinner fades in centred — button keeps its width so the layout doesn't jump.</td></tr>
+        <tr><td>Disabled</td><td>Flat neutral grey (#A0A0AA), no hover/active response, <code>cursor: not-allowed</code>, <code>aria-disabled="true"</code>.</td></tr>
+        <tr><td>Focus (keyboard)</td><td>3px solid focus ring in Badge Blue, 2px offset — same token as every other focusable element on the page.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub">Form inputs</h3>
+  <div class="grid g4 wide">
+    <div class="cl-card"><div class="in-field"><label>Default</label><input placeholder="Email address"></div></div>
+    <div class="cl-card"><div class="in-field"><label>Focus</label><input class="st-focus" placeholder="Email address"></div></div>
+    <div class="cl-card"><div class="in-field"><label>Error</label><input class="st-error" value="not-an-email"><span class="err">Enter a valid email address</span></div></div>
+    <div class="cl-card"><div class="in-field"><label>Disabled</label><input class="st-disabled" placeholder="Email address" disabled></div></div>
+  </div>
+
+  <h3 class="sub">Badges &amp; tags</h3>
+  <div class="cl-card wide">
+    <div class="badges-row">
+      <span class="b-pill" style="background:var(--rb-success-50);color:var(--ok)">In stock</span>
+      <span class="b-pill" style="background:var(--rb-alert-50);color:var(--bad)">Prescription only</span>
+      <span class="b-pill" style="background:var(--rb-amber-50);color:var(--rb-amber-deep)">Weekend deal</span>
+      <span class="b-pill" style="background:var(--rb-navy-50);color:var(--rb-navy)">Pharmacy</span>
+      <span class="b-pill" style="background:var(--rb-lavender-mist);color:var(--rb-lavender-deep)">Veterinary</span>
+      <span class="b-pill" style="background:var(--well);color:var(--muted)">Out of stock</span>
+    </div>
+  </div>
+
+  <h3 class="sub">Card hover/focus states</h3>
+  <div class="state-matrix wide">
+    <div><div class="pillar ph" style="padding:1rem;transform:scale(0.8)"><div class="picon" style="width:2.2rem;height:2.2rem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="4" rx="1"/></svg></div></div><span class="lbl2">Default</span></div>
+    <div><div class="pillar ph hover-demo" style="padding:1rem;transform:scale(0.8) translateY(-6px)"><div class="picon" style="width:2.2rem;height:2.2rem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="4" rx="1"/></svg></div></div><span class="lbl2">Hover</span></div>
+    <div><div class="pillar ph" style="padding:1rem;transform:scale(0.76);outline:3px solid var(--accent);outline-offset:2px"><div class="picon" style="width:2.2rem;height:2.2rem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="4" rx="1"/></svg></div></div><span class="lbl2">Keyboard focus</span></div>
+    <div><div class="pillar ph" style="padding:1rem;transform:scale(0.8) scale(0.97)"><div class="picon" style="width:2.2rem;height:2.2rem"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="4" rx="1"/></svg></div></div><span class="lbl2">Active</span></div>
+    <div><div class="pillar ph skeleton" style="padding:1rem;transform:scale(0.8);color:transparent"><div class="picon" style="width:2.2rem;height:2.2rem;background:transparent"></div></div><span class="lbl2">Loading</span></div>
+  </div>
+
+  <h3 class="sub">Accessibility checklist</h3>
+  <div class="tbl wide">
+    <table>
+      <thead><tr><th>Requirement</th><th>Applied as</th></tr></thead>
+      <tbody>
+        <tr><td>Colour contrast</td><td>All text/background pairs reuse the ratios verified in the brand guide (section 01) — nothing on this page introduces a new pairing.</td></tr>
+        <tr><td>Keyboard navigation</td><td>Every interactive element (nav links, mega-menu items, carousel arrows, quick-add) is reachable by Tab in visual order; mega-menus open on focus, not just hover.</td></tr>
+        <tr><td>ARIA</td><td>Hero slider: <code>role="region" aria-roledescription="carousel"</code>, live region announces slide changes only when paused. Quick-add: <code>aria-label="Add [product] to basket"</code>.</td></tr>
+        <tr><td>Alt text</td><td>Every product, branch and hero image needs a written description at build time — no image ships without one.</td></tr>
+        <tr><td>Motion</td><td>Auto-advancing carousel stops under <code>prefers-reduced-motion: reduce</code>; shimmer/skeleton animations shorten to near-zero rather than disappearing.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="open">
+  <div class="sec-head"><div class="tab">10</div><div><h2>Assumptions &amp; open items</h2><p>Calls made to keep this spec concrete, for the business to confirm before Figma or build locks them in.</p></div></div>
+  <ol class="open-items">
+    <li><b>Store hours</b>Shown as a 7am–9pm sample across all three branches. Needs real, possibly branch-specific hours — the flagship's vet clinic may keep different hours from its pharmacy/supermarket floor.</li>
+    <li><b>App download badges</b>Spec shows "coming soon" placeholders since no app exists yet per the IA spec's scope (web + admin only). Confirm whether these should be removed entirely for v1 rather than teased.</li>
+    <li><b>Promo countdown source</b>The combo banner's timer needs a real end-time from the Promotions &amp; Loyalty admin module (IA spec, section 01) — not a hardcoded value in the frontend.</li>
+    <li><b>Real photography</b>Every background described as "pharmacist image," "pet + owner photo," "produce imagery" etc. is a placeholder gradient here — these need the actual shoot from the brand guide's photography brief (section 06) before high-fidelity Figma.</li>
+    <li><b>Testimonial sourcing</b>Three sample quotes are placeholder layout content only. Replace with real, consented customer reviews — and decide how "Verified purchase" is determined (linked order ID, most likely) before launch.</li>
+    <li><b>Payment &amp; social logos</b>Represented as neutral text chips here to avoid reproducing trademarked artwork. Source the providers' actual logo files and usage guidelines for the Figma handoff.</li>
+  </ol>
+</section>
+</main>
+</div>
