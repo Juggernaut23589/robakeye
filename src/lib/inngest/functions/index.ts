@@ -8,6 +8,7 @@ import { vaccinationDueReminder } from "@/lib/inngest/functions/vaccination-remi
 import { productExpiryAlert } from "@/lib/inngest/functions/expiry-alert";
 import { abandonedCartRecovery } from "@/lib/inngest/functions/abandoned-cart";
 import { handleOrderDelivered } from "@/lib/inngest/functions/order-delivered";
+import { notifyRestockSubscribers } from "@/lib/inngest/functions/restock";
 
 // Milestone 1 smoke-test function only — confirms the Inngest pipeline
 // (event send → function run → step.run) works end-to-end before any
@@ -40,4 +41,5 @@ export const functions = [
   productExpiryAlert,
   abandonedCartRecovery,
   handleOrderDelivered,
+  notifyRestockSubscribers,
 ];

@@ -4,63 +4,77 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateOrderTotal, type CalcCartItem, type DeliveryMethod } from "@/lib/orderCalculation";
+import { prescriptionAllowance } from "@/lib/prescriptions";
 
+// A quote/order is always for ONE store (the basket the customer chose to
+// check out). Every line must be that store's own listing.
 const quoteSchema = z.object({
-  items: z.array(
-    z.object({
-      productId: z.string(),
-      branchId: z.string(),
-      quantity: z.number().int().positive(),
-    }),
-  ),
+  branchId: z.string().min(1),
+  items: z
+    .array(z.object({ productId: z.string(), quantity: z.number().int().positive().max(99) }))
+    .min(1),
   promoCode: z.string().optional(),
   deliveryMethod: z.enum(["DELIVERY", "PICKUP"]),
   addressId: z.string().optional(),
 });
 
-// Loads the authoritative price/branch-name for each cart line from the DB
-// rather than trusting whatever the client sent — the brief's "server is
-// the source of truth" rule applies to quotes too, not just final orders.
-async function hydrateCalcItems(
-  items: { productId: string; branchId: string; quantity: number }[],
-): Promise<CalcCartItem[]> {
+type HydratedLine = CalcCartItem & { class: "OTC" | "POM" | "CONTROLLED"; stockQuantity: number; isActive: boolean };
+
+// Loads the authoritative price/stock for each line from the DB rather
+// than trusting the client — the "server is the source of truth" rule
+// applies to quotes too. Lines that aren't this store's listing are
+// reported, never silently re-priced from another store.
+async function hydrateLines(branchId: string, items: { productId: string; quantity: number }[]) {
   const products = await prisma.product.findMany({
     where: { id: { in: items.map((i) => i.productId) } },
-    include: { inventory: { include: { branch: { select: { id: true, name: true } } } } },
+    select: { id: true, name: true, priceKobo: true, branchId: true, class: true, stockQuantity: true, isActive: true },
   });
   const byId = new Map(products.map((p) => [p.id, p]));
 
-  return items.flatMap((item) => {
-    const product = byId.get(item.productId);
-    const branch = product?.inventory.find((inv) => inv.branchId === item.branchId)?.branch;
-    if (!product || !branch) return [];
-    return [
-      {
-        productId: product.id,
-        branchId: branch.id,
-        branchName: branch.name,
-        name: product.name,
-        unitPriceKobo: product.priceKobo,
-        quantity: item.quantity,
-      },
-    ];
-  });
+  const lines: HydratedLine[] = [];
+  const foreign: string[] = [];
+  for (const item of items) {
+    const p = byId.get(item.productId);
+    if (!p) continue; // deleted listing — quietly dropped, the cart UI prunes it
+    if (p.branchId !== branchId) {
+      foreign.push(p.name);
+      continue;
+    }
+    lines.push({
+      productId: p.id,
+      name: p.name,
+      unitPriceKobo: p.priceKobo,
+      quantity: item.quantity,
+      class: p.class,
+      stockQuantity: p.stockQuantity,
+      isActive: p.isActive,
+    });
+  }
+  return { lines, foreign };
+}
+
+async function resolveDestination(userId: string | undefined, method: DeliveryMethod, addressId?: string) {
+  if (method !== "DELIVERY" || !addressId || !userId) return { destination: null, address: null };
+  // Only the signed-in customer's own address — never someone else's id.
+  const address = await prisma.address.findFirst({ where: { id: addressId, userId } });
+  const destination = address?.lat != null && address?.lng != null ? { lat: address.lat, lng: address.lng } : null;
+  return { destination, address };
 }
 
 export async function getCartQuote(input: unknown) {
   const parsed = quoteSchema.safeParse(input);
-  if (!parsed.success) return { ok: false as const, error: "Invalid cart" };
+  if (!parsed.success) return { ok: false as const, error: "Invalid basket" };
 
-  const calcItems = await hydrateCalcItems(parsed.data.items);
-  if (calcItems.length === 0) return { ok: false as const, error: "Cart is empty" };
+  const store = await prisma.branch.findUnique({ where: { id: parsed.data.branchId }, select: { id: true } });
+  if (!store) return { ok: false as const, error: "Store not found" };
 
-  let destination: { lat: number; lng: number } | null = null;
-  if (parsed.data.deliveryMethod === "DELIVERY" && parsed.data.addressId) {
-    const address = await prisma.address.findUnique({ where: { id: parsed.data.addressId } });
-    if (address?.lat && address?.lng) destination = { lat: address.lat, lng: address.lng };
-  }
+  const { lines } = await hydrateLines(parsed.data.branchId, parsed.data.items);
+  if (lines.length === 0) return { ok: false as const, error: "This basket is empty" };
 
-  const result = await calculateOrderTotal(calcItems, {
+  const session = await auth();
+  const { destination } = await resolveDestination(session?.user?.id, parsed.data.deliveryMethod, parsed.data.addressId);
+
+  const result = await calculateOrderTotal(parsed.data.branchId, lines, {
     promoCode: parsed.data.promoCode,
     deliveryMethod: parsed.data.deliveryMethod,
     destination,
@@ -69,119 +83,110 @@ export async function getCartQuote(input: unknown) {
   return { ok: true as const, result };
 }
 
-const createOrderSchema = quoteSchema;
-
 export async function createOrder(input: unknown) {
   const session = await auth();
   if (!session?.user) return { ok: false as const, error: "Sign in to place an order" };
 
-  const parsed = createOrderSchema.safeParse(input);
+  const parsed = quoteSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "Invalid order" };
-  if (parsed.data.deliveryMethod === "DELIVERY" && !parsed.data.addressId) {
-    return { ok: false as const, error: "Select a delivery address" };
+  const { branchId, deliveryMethod, addressId } = parsed.data;
+
+  const store = await prisma.branch.findUnique({ where: { id: branchId }, select: { id: true, name: true } });
+  if (!store) return { ok: false as const, error: "Store not found" };
+
+  const { lines, foreign } = await hydrateLines(branchId, parsed.data.items);
+  if (foreign.length > 0) {
+    return {
+      ok: false as const,
+      error: `${foreign.join(", ")} ${foreign.length > 1 ? "aren't" : "isn't"} sold at ${store.name}. Each store is checked out separately.`,
+    };
+  }
+  if (lines.length === 0) return { ok: false as const, error: "This basket is empty" };
+
+  for (const line of lines) {
+    if (!line.isActive) return { ok: false as const, error: `${line.name} is no longer sold at ${store.name}.` };
+    if (line.class === "CONTROLLED") {
+      return { ok: false as const, error: `${line.name} can only be dispensed in-store after a pharmacist consultation.` };
+    }
+    if (line.stockQuantity < line.quantity) {
+      return {
+        ok: false as const,
+        error:
+          line.stockQuantity === 0
+            ? `${line.name} just went out of stock at ${store.name}.`
+            : `Only ${line.stockQuantity} × ${line.name} left at ${store.name} — please reduce the quantity.`,
+      };
+    }
+    if (line.class === "POM") {
+      const allowed = await prescriptionAllowance(session.user.id, line.productId);
+      if (allowed < line.quantity) {
+        return {
+          ok: false as const,
+          error:
+            allowed === 0
+              ? `${line.name} needs an approved prescription from ${store.name}'s pharmacist before you can order it.`
+              : `Your prescription covers ${allowed} × ${line.name}; reduce the quantity to continue.`,
+        };
+      }
+    }
   }
 
-  const calcItems = await hydrateCalcItems(parsed.data.items);
-  if (calcItems.length === 0) return { ok: false as const, error: "Cart is empty" };
+  if (deliveryMethod === "DELIVERY" && !addressId) return { ok: false as const, error: "Select a delivery address" };
+  const { destination, address } = await resolveDestination(session.user.id, deliveryMethod, addressId);
+  if (deliveryMethod === "DELIVERY" && !address) return { ok: false as const, error: "Select a delivery address" };
 
-  let destination: { lat: number; lng: number } | null = null;
-  if (parsed.data.deliveryMethod === "DELIVERY" && parsed.data.addressId) {
-    const address = await prisma.address.findUnique({ where: { id: parsed.data.addressId } });
-    if (address?.lat && address?.lng) destination = { lat: address.lat, lng: address.lng };
-  }
-
-  const quote = await calculateOrderTotal(calcItems, {
+  const quote = await calculateOrderTotal(branchId, lines, {
     promoCode: parsed.data.promoCode,
-    deliveryMethod: parsed.data.deliveryMethod,
+    deliveryMethod,
     destination,
   });
   if (quote.promoError) return { ok: false as const, error: quote.promoError };
+  if (quote.deliveryError) return { ok: false as const, error: quote.deliveryError };
 
-  // Checkout group id — every Order from one checkout gets one, even a
-  // single-branch order, because Payment now links to a group rather than
-  // a single Order (one Paystack transaction can cover several sub-orders;
-  // see the Payment model's comment in schema.prisma).
+  // Payment links to a checkout group, so a single-store order still gets
+  // one (see the Payment model's comment in schema.prisma).
   const groupId = crypto.randomUUID();
   const datePrefix = `RK-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
-  const todaysCount = await prisma.order.count({
-    where: { orderNumber: { startsWith: datePrefix } },
-  });
 
-  try {
-    const orders = await prisma.$transaction(async (tx) => {
-      const created = [];
-      for (let i = 0; i < quote.subOrders.length; i++) {
-        const sub = quote.subOrders[i];
-
-        // Read-only stock check at order creation (catches the obvious
-        // "already out of stock" case before the customer even reaches
-        // payment) — the actual atomic decrement happens later, in the
-        // order.paid Inngest handler, NOT here. Reserving stock for a
-        // PENDING_PAYMENT order that the customer may never pay for would
-        // hold real inventory hostage against an abandoned Paystack popup.
-        for (const item of sub.items) {
-          const inv = await tx.branchInventory.findUnique({
-            where: { branchId_productId: { branchId: sub.branchId, productId: item.productId } },
-            select: { quantity: true },
-          });
-          if (!inv || inv.quantity < item.quantity) {
-            throw new Error(`INSUFFICIENT_STOCK:${item.name}`);
-          }
-        }
-
-        const orderNumber = `${datePrefix}-${String(todaysCount + i + 1).padStart(4, "0")}`;
-        // This sub-order's share of cart-level discounts, proportional to
-        // its share of the items subtotal — so the sum across sub-orders
-        // still equals the quote the customer reviewed.
-        const share = sub.itemsSubtotalKobo / quote.itemsSubtotalKobo;
-        const comboShare = Math.round(quote.comboDiscountKobo * share);
-        const promoShare = Math.round(quote.promoDiscountKobo * share);
-        const loyaltyShare = Math.round(quote.loyaltyDiscountKobo * share);
-        const subtotalShare = sub.itemsSubtotalKobo - comboShare - promoShare - loyaltyShare;
-        const taxShare = Math.round(quote.taxKobo * share);
-        const serviceShare = Math.round(quote.serviceChargeKobo * share);
-
-        const order = await tx.order.create({
-          data: {
-            orderNumber,
-            groupId,
-            userId: session.user.id,
-            branchId: sub.branchId,
-            addressId: parsed.data.deliveryMethod === "DELIVERY" ? parsed.data.addressId : null,
-            deliveryMethod: parsed.data.deliveryMethod as DeliveryMethod,
-            status: "PENDING_PAYMENT",
-            subtotalKobo: subtotalShare,
-            comboDiscountKobo: comboShare,
-            promoDiscountKobo: promoShare,
-            loyaltyDiscountKobo: loyaltyShare,
-            deliveryFeeKobo: sub.deliveryFeeKobo,
-            serviceChargeKobo: serviceShare,
-            taxKobo: taxShare,
-            totalKobo: subtotalShare + sub.deliveryFeeKobo + serviceShare + taxShare,
-            items: {
-              create: sub.items.map((i) => ({
-                productId: i.productId,
-                quantity: i.quantity,
-                unitPriceKobo: i.unitPriceKobo,
-              })),
-            },
-            statusHistory: { create: { status: "PENDING_PAYMENT", note: "Order created" } },
+  // Stock is only read here; the atomic decrement happens in the
+  // order.paid Inngest handler. Reserving stock for an unpaid order would
+  // hold real inventory hostage against an abandoned payment popup.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const todaysCount = await prisma.order.count({ where: { orderNumber: { startsWith: datePrefix } } });
+    const orderNumber = `${datePrefix}-${String(todaysCount + 1 + attempt).padStart(4, "0")}`;
+    try {
+      const order = await prisma.order.create({
+        data: {
+          orderNumber,
+          groupId,
+          userId: session.user.id,
+          branchId,
+          addressId: deliveryMethod === "DELIVERY" ? address!.id : null,
+          deliveryMethod,
+          status: "PENDING_PAYMENT",
+          subtotalKobo: quote.subtotalKobo,
+          comboDiscountKobo: quote.comboDiscountKobo,
+          promoDiscountKobo: quote.promoDiscountKobo,
+          loyaltyDiscountKobo: quote.loyaltyDiscountKobo,
+          deliveryFeeKobo: quote.deliveryFeeKobo,
+          serviceChargeKobo: quote.serviceChargeKobo,
+          taxKobo: quote.taxKobo,
+          totalKobo: quote.finalTotalKobo,
+          promoCodeId: quote.promotionId ?? null,
+          items: {
+            create: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, unitPriceKobo: l.unitPriceKobo })),
           },
-        });
-        created.push(order);
-      }
-      return created;
-    });
-
-    return { ok: true as const, orderNumbers: orders.map((o) => o.orderNumber), groupId };
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("INSUFFICIENT_STOCK:")) {
-      return {
-        ok: false as const,
-        error: `${err.message.split(":")[1]} just went out of stock at the selected branch. Please review your cart.`,
-      };
+          statusHistory: { create: { status: "PENDING_PAYMENT", note: `Order created at ${store.name}` } },
+        },
+      });
+      return { ok: true as const, orderNumbers: [order.orderNumber], groupId, branchId };
+    } catch (err) {
+      // Two checkouts in the same instant can race for the same order
+      // number — retry with the next one.
+      if ((err as { code?: string }).code === "P2002") continue;
+      console.error("Order creation failed", err);
+      return { ok: false as const, error: "Something went wrong placing your order. Please try again." };
     }
-    console.error("Order creation failed", err);
-    return { ok: false as const, error: "Something went wrong placing your order. Please try again." };
   }
+  return { ok: false as const, error: "Something went wrong placing your order. Please try again." };
 }

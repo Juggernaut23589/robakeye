@@ -10,9 +10,13 @@ export default async function ConsultPharmacistPage({
   const product = productId
     ? await prisma.product.findUnique({
         where: { id: productId },
-        select: { id: true, name: true, class: true },
+        select: { id: true, name: true, class: true, branch: { select: { name: true } } },
       })
     : null;
 
-  return <ConsultPageClient product={product} />;
+  return (
+    <ConsultPageClient
+      product={product ? { id: product.id, name: product.name, class: product.class, storeName: product.branch.name } : null}
+    />
+  );
 }

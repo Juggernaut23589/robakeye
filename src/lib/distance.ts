@@ -5,18 +5,9 @@
 // falling back to a clearly-labelled straight-line (haversine) estimate
 // otherwise. Never silently substitutes one for the other without saying so.
 
-export type LatLng = { lat: number; lng: number };
+import { haversineKm, type LatLng } from "@/lib/geo";
 
-export function haversineKm(a: LatLng, b: LatLng): number {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
+export { haversineKm, type LatLng };
 
 export type DistanceResult = { km: number; source: "driving" | "straight-line" };
 
@@ -67,72 +58,4 @@ export async function getDistance(origin: LatLng, dest: LatLng): Promise<Distanc
   const driving = await drivingDistanceKm(origin, dest);
   if (driving !== null) return { km: driving, source: "driving" };
   return { km: haversineKm(origin, dest), source: "straight-line" };
-}
-
-// ─────────────────────────────────────────────────────────────
-// findAvailableBranches — the reusable server utility the brief names
-// explicitly. Implements the IA spec's flowchart (§02): rank branches by
-// distance, filter to each branch's own delivery radius (DeliveryZone.maxKm
-// — "per-branch, not a uniform constant"), then report per-branch stock
-// for the given product so the caller can render the exact states the spec
-// describes (primary match / fallback branch / fully unavailable).
-// ─────────────────────────────────────────────────────────────
-
-import { prisma } from "@/lib/prisma";
-
-export type BranchAvailability = {
-  branchId: string;
-  branchSlug: string;
-  branchName: string;
-  distanceKm: number;
-  distanceSource: "driving" | "straight-line";
-  withinRadius: boolean;
-  quantity: number;
-  inStock: boolean;
-};
-
-export async function findAvailableBranches(
-  productId: string,
-  origin: LatLng | null,
-): Promise<BranchAvailability[]> {
-  const inventoryRows = await prisma.branchInventory.findMany({
-    where: { productId },
-    include: {
-      branch: { include: { deliveryZones: true } },
-    },
-  });
-
-  const results = await Promise.all(
-    inventoryRows.map(async (row) => {
-      let distanceKm = 0;
-      let distanceSource: "driving" | "straight-line" = "straight-line";
-      let withinRadius = true;
-
-      if (origin) {
-        const branchOrigin = { lat: row.branch.lat, lng: row.branch.lng };
-        const distance = await getDistance(origin, branchOrigin);
-        distanceKm = distance.km;
-        distanceSource = distance.source;
-        const radius = row.branch.deliveryZones[0]?.maxKm;
-        withinRadius = radius === undefined ? true : distanceKm <= radius;
-      }
-
-      return {
-        branchId: row.branch.id,
-        branchSlug: row.branch.slug,
-        branchName: row.branch.name,
-        distanceKm,
-        distanceSource,
-        withinRadius,
-        quantity: row.quantity,
-        inStock: row.quantity > 0,
-      } satisfies BranchAvailability;
-    }),
-  );
-
-  // Pickup bypasses matching (IA spec rule table) — callers that only care
-  // about delivery should filter `withinRadius` themselves; this function
-  // always returns every branch that stocks the product so a pickup-mode
-  // caller can still see all of them, nearest first.
-  return results.sort((a, b) => a.distanceKm - b.distanceKm);
 }

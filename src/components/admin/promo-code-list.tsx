@@ -18,6 +18,7 @@ type Promo = {
   isActive: boolean;
   startsAt: Date;
   endsAt: Date;
+  branch: { name: string } | null;
 };
 
 export function PromoCodeList({ promotions }: { promotions: Promo[] }) {
@@ -41,6 +42,7 @@ export function PromoCodeList({ promotions }: { promotions: Promo[] }) {
         <thead className="bg-rk-n50 text-xs text-rk-n600">
           <tr>
             <th className="p-3">Code</th>
+            <th className="p-3">Store</th>
             <th className="p-3">Discount</th>
             <th className="p-3">Min spend</th>
             <th className="p-3">Usage</th>
@@ -52,6 +54,7 @@ export function PromoCodeList({ promotions }: { promotions: Promo[] }) {
           {promotions.map((p) => (
             <tr key={p.id}>
               <td className="p-3 font-mono font-semibold text-rk-navy">{p.code}</td>
+              <td className="p-3 text-xs">{p.branch?.name ?? "Every store"}</td>
               <td className="p-3">{p.type === "PERCENTAGE" ? `${p.percentOff}% off` : formatNaira(p.valueKobo ?? 0)}</td>
               <td className="p-3">{p.minSpendKobo ? formatNaira(p.minSpendKobo) : "—"}</td>
               <td className="p-3">

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { inngest, orderDelivered } from "@/lib/inngest/client";
+import { branchWhere, canAccessBranch, getStaffBranchIds } from "@/lib/staff-scope";
 import type { OrderStatus } from "@prisma/client";
 
 const filterSchema = z.object({
@@ -18,11 +19,12 @@ export async function listOrdersForAdmin(input: unknown) {
 
   const parsed = filterSchema.safeParse(input);
   const filters = parsed.success ? parsed.data : {};
+  const allowed = await getStaffBranchIds(session);
 
   return prisma.order.findMany({
     where: {
       status: filters.status ? (filters.status as OrderStatus) : undefined,
-      branchId: filters.branchId || undefined,
+      ...branchWhere(allowed, filters.branchId || undefined),
       ...(filters.query
         ? {
             OR: [
@@ -44,16 +46,23 @@ export async function listOrdersForAdmin(input: unknown) {
 }
 
 export async function listBranchesForFilter() {
-  return prisma.branch.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
+  const allowed = await getStaffBranchIds(await auth());
+  return prisma.branch.findMany({
+    where: allowed === null ? undefined : { id: { in: allowed } },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 export async function getOrderDetail(orderId: string) {
   const session = await auth();
   if (!session?.user?.permissions.includes("orders.view")) return null;
 
-  return prisma.order.findUnique({
+  const allowed = await getStaffBranchIds(session);
+  const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
+      deliveryPartner: { select: { name: true, phone: true } },
       user: { select: { name: true, email: true, phone: true } },
       branch: { select: { name: true, address: true } },
       address: true,
@@ -63,6 +72,8 @@ export async function getOrderDetail(orderId: string) {
       prescription: { select: { id: true, status: true } },
     },
   });
+  if (!order || !canAccessBranch(allowed, order.branchId)) return null;
+  return order;
 }
 
 const ORDER_STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
@@ -74,6 +85,12 @@ const ORDER_STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
   CANCELLED: [],
   REFUNDED: [],
 };
+
+// Pickup orders skip the rider leg: ready at the store → collected.
+function nextStatuses(status: OrderStatus, method: "DELIVERY" | "PICKUP"): OrderStatus[] {
+  if (method === "PICKUP" && status === "PROCESSING") return ["DELIVERED", "CANCELLED"];
+  return ORDER_STATUS_FLOW[status];
+}
 
 const updateStatusSchema = z.object({
   orderId: z.string(),
@@ -90,11 +107,16 @@ export async function updateOrderStatus(input: unknown) {
   if (!parsed.success) return { ok: false as const, error: "Invalid status update" };
 
   const order = await prisma.order.findUnique({ where: { id: parsed.data.orderId } });
-  if (!order) return { ok: false as const, error: "Order not found" };
+  const allowedStores = await getStaffBranchIds(session);
+  if (!order || !canAccessBranch(allowedStores, order.branchId)) return { ok: false as const, error: "Order not found" };
 
-  const allowedNext = ORDER_STATUS_FLOW[order.status];
+  const allowedNext = nextStatuses(order.status, order.deliveryMethod);
   if (!allowedNext.includes(parsed.data.status)) {
     return { ok: false as const, error: `Cannot move an order from ${order.status} to ${parsed.data.status}` };
+  }
+  // A delivery can't leave the store without someone carrying it.
+  if (parsed.data.status === "OUT_FOR_DELIVERY" && !order.deliveryPartnerId) {
+    return { ok: false as const, error: "Assign a rider (Delivery page) before marking this order out for delivery" };
   }
 
   await prisma.$transaction([

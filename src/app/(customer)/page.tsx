@@ -1,51 +1,31 @@
 import { prisma } from "@/lib/prisma";
-import { HeroSlider } from "@/components/home/hero-slider";
-import { Pillars } from "@/components/home/pillars";
-import { LocationFinder } from "@/components/home/location-finder";
-import { FeaturedProducts } from "@/components/home/featured-products";
-import { TrustStrip } from "@/components/home/trust-strip";
-import { VetServices } from "@/components/home/vet-services";
-import { PromoBanner } from "@/components/home/promo-banner";
-import { Testimonials } from "@/components/home/testimonials";
+import { getStores } from "@/lib/stores";
+import { StorePickerHero } from "@/components/home/store-picker-hero";
 
+// The landing page is a store chooser: navbar, one full-height banner
+// (three slides — supermart, pharmacy, vet clinic) with the store picker
+// over it, then the footer. Shopping itself happens inside a store at
+// /store/<slug>, because each location has its own catalogue and stock.
 export default async function Home() {
-  const now = new Date();
-  const [branches, products, featuredCombo] = await Promise.all([
-    prisma.branch.findMany({
-      select: { id: true, slug: true, name: true, address: true, lat: true, lng: true, services: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.product.findMany({
-      where: { isActive: true },
-      select: { id: true, slug: true, name: true, priceKobo: true, vertical: true, images: true },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-    }),
-    prisma.comboDeal.findFirst({
-      where: { isActive: true, isFeaturedOnHomepage: true, startsAt: { lte: now }, endsAt: { gte: now } },
-    }),
+  const [stores, zones] = await Promise.all([
+    getStores(),
+    prisma.deliveryZone.groupBy({ by: ["branchId"], _max: { maxKm: true } }),
   ]);
+  const radiusByStore = new Map(zones.map((z) => [z.branchId, z._max.maxKm]));
 
   return (
-    <>
-      <HeroSlider />
-      <Pillars />
-      <LocationFinder branches={branches} />
-      <FeaturedProducts products={products} />
-      <TrustStrip />
-      <VetServices />
-      <PromoBanner
-        featured={
-          featuredCombo
-            ? {
-                headline: featuredCombo.bannerHeadline ?? featuredCombo.name,
-                description: null,
-                endsAt: featuredCombo.endsAt.toISOString(),
-              }
-            : null
-        }
-      />
-      <Testimonials />
-    </>
+    <StorePickerHero
+      stores={stores.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        address: s.address,
+        lat: s.lat,
+        lng: s.lng,
+        services: s.services,
+        tagline: s.tagline,
+        deliveryKm: radiusByStore.get(s.id) ?? null,
+      }))}
+    />
   );
 }

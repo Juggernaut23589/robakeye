@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { prescriptionAllowance } from "@/lib/prescriptions";
+import { branchWhere, canAccessBranch, getStaffBranchIds } from "@/lib/staff-scope";
 import {
   getPrescriptionUploadSignature,
   isCloudinaryConfigured,
@@ -39,21 +41,27 @@ export async function submitPrescription(input: unknown) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid submission" };
   }
 
-  // Only POM products from Pharmacy/Veterinary go through pharmacist
-  // review — reject anything else so the queue never fills with items
-  // that were never meant to need a prescription.
+  // Only POM products go through pharmacist review — reject anything else
+  // so the queue never fills with items that never needed a prescription.
+  // Every line must be from the same store: that store's pharmacist
+  // reviews it, and the approval only unlocks that store's listing.
   const products = await prisma.product.findMany({
     where: { id: { in: parsed.data.lines.map((l) => l.productId) } },
-    select: { id: true, class: true },
+    select: { id: true, class: true, branchId: true },
   });
   const invalid = products.some((p) => p.class !== "POM");
   if (invalid || products.length !== parsed.data.lines.length) {
     return { ok: false as const, error: "One or more items don't require a prescription" };
   }
+  const branchIds = new Set(products.map((p) => p.branchId));
+  if (branchIds.size !== 1) {
+    return { ok: false as const, error: "Submit a separate prescription for each store" };
+  }
 
   const prescription = await prisma.prescription.create({
     data: {
       userId: session.user.id,
+      branchId: products[0].branchId,
       imagePublicId: parsed.data.imagePublicId,
       status: "PENDING",
       lines: { create: parsed.data.lines },
@@ -71,7 +79,10 @@ export async function getMyPrescriptions() {
   if (!session?.user) return [];
   return prisma.prescription.findMany({
     where: { userId: session.user.id },
-    include: { lines: { include: { product: { select: { name: true } } } } },
+    include: {
+      branch: { select: { name: true } },
+      lines: { include: { product: { select: { name: true } } } },
+    },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -79,9 +90,12 @@ export async function getMyPrescriptions() {
 export async function getPendingPrescriptionQueue() {
   const session = await auth();
   if (!session?.user?.permissions.includes("prescriptions.view")) return [];
+  // A pharmacist only sees prescriptions for the store(s) they work at.
+  const allowed = await getStaffBranchIds(session);
   return prisma.prescription.findMany({
-    where: { status: { in: ["PENDING"] } },
+    where: { status: { in: ["PENDING"] }, ...branchWhere(allowed) },
     include: {
+      branch: { select: { name: true } },
       user: { select: { name: true, email: true } },
       lines: { include: { product: { select: { name: true, sku: true } } } },
     },
@@ -92,16 +106,18 @@ export async function getPendingPrescriptionQueue() {
 export async function getPrescriptionForReview(prescriptionId: string) {
   const session = await auth();
   if (!session?.user?.permissions.includes("prescriptions.view")) return null;
+  const allowed = await getStaffBranchIds(session);
 
   const prescription = await prisma.prescription.findUnique({
     where: { id: prescriptionId },
     include: {
+      branch: { select: { name: true } },
       user: { select: { name: true, email: true } },
       lines: { include: { product: { select: { name: true, sku: true, priceKobo: true } } } },
       audit: { orderBy: { createdAt: "asc" } },
     },
   });
-  if (!prescription) return null;
+  if (!prescription || !canAccessBranch(allowed, prescription.branchId)) return null;
 
   const imageUrl = isCloudinaryConfigured()
     ? getSignedPrescriptionUrl(prescription.imagePublicId)
@@ -131,6 +147,10 @@ export async function decidePrescriptionLine(input: unknown) {
     include: { prescription: { include: { lines: true } } },
   });
   if (!line) return { ok: false as const, error: "Line not found" };
+  const allowed = await getStaffBranchIds(session);
+  if (!canAccessBranch(allowed, line.prescription.branchId)) {
+    return { ok: false as const, error: "This prescription belongs to another store" };
+  }
 
   await prisma.$transaction([
     prisma.prescriptionLine.update({
@@ -196,18 +216,5 @@ export async function decidePrescriptionLine(input: unknown) {
 export async function getApprovedPrescriptionQuantity(productId: string) {
   const session = await auth();
   if (!session?.user) return 0;
-
-  const lines = await prisma.prescriptionLine.findMany({
-    where: {
-      productId,
-      status: "APPROVED",
-      prescription: {
-        userId: session.user.id,
-        status: { in: ["APPROVED", "PARTIALLY_APPROVED"] },
-        expiresAt: { gt: new Date() },
-      },
-    },
-    select: { quantity: true },
-  });
-  return lines.reduce((sum, l) => sum + l.quantity, 0);
+  return prescriptionAllowance(session.user.id, productId);
 }

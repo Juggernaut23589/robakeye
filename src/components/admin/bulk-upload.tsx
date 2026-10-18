@@ -46,8 +46,8 @@ export function BulkUpload() {
     <div className="rounded-rk-md border border-rk-n200 bg-white p-5">
       <h2 className="mb-2 font-semibold text-rk-navy">Bulk upload</h2>
       <p className="mb-3 text-xs text-rk-n600">
-        CSV columns: sku, slug, name, vertical (PHARMACY/VETERINARY/SUPERMARKET), class (OTC/POM/CONTROLLED),
-        categorySlug, priceNaira. Existing SKUs are updated; new ones are created.
+        CSV columns: storeSlug (ajadi/ojoo/sheu), sku, slug, name, vertical (PHARMACY/VETERINARY/SUPERMARKET), class (OTC/POM/CONTROLLED),
+        categorySlug, priceNaira, and optional stock. Rows match on store + SKU: existing ones are updated, new ones created.
       </p>
       <label>
         <Button asChild variant="outline" size="sm">

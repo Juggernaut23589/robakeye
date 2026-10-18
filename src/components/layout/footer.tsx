@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-export type FooterBranch = { id: string; slug: string; name: string; phone: string | null };
+export type FooterBranch = { id: string; slug: string; name: string; phone: string | null; address: string };
 
 export function Footer({ branches }: { branches: FooterBranch[] }) {
   return (
@@ -15,31 +15,20 @@ export function Footer({ branches }: { branches: FooterBranch[] }) {
           <p className="max-w-72 text-sm text-[#9FA1D4]">
             Pharmacy, veterinary care and everyday groceries across three Ibadan locations.
           </p>
-          <div className="mt-3 flex flex-wrap gap-3 text-xs">
-            {["Instagram", "Facebook", "X", "WhatsApp", "TikTok"].map((s) => (
-              <span key={s}>{s}</span>
-            ))}
-          </div>
         </div>
 
         <FooterColumn
-          title="Quick Links"
-          links={[
-            { label: "About Us", href: "/about" },
-            { label: "Careers", href: "/careers" },
-            { label: "Blog", href: "/blog" },
-            { label: "FAQ", href: "/faq" },
-            { label: "Contact", href: "/contact" },
-          ]}
+          title="Shop a store"
+          links={branches.map((b) => ({ label: b.name, href: `/store/${b.slug}` }))}
         />
         <FooterColumn
-          title="Customer Service"
+          title="Help"
           links={[
-            { label: "Track Order", href: "/account" },
-            { label: "Returns Policy", href: "/returns" },
-            { label: "Delivery Info", href: "/delivery" },
-            { label: "Privacy Policy", href: "/privacy" },
-            { label: "Terms of Service", href: "/terms" },
+            { label: "Track an order", href: "/account" },
+            { label: "Delivery areas", href: "/locations" },
+            { label: "Ask a pharmacist", href: "/pharmacy/consult" },
+            { label: "Upload a prescription", href: "/account/prescriptions" },
+            { label: "Book a vet visit", href: "/veterinary/book" },
           ]}
         />
 
@@ -47,13 +36,14 @@ export function Footer({ branches }: { branches: FooterBranch[] }) {
           <h6 className="mb-2.5 text-xs font-bold tracking-wide text-[#8F91C9] uppercase">
             Our Locations
           </h6>
-          <ul className="grid gap-1.5 text-sm">
+          <ul className="grid gap-2.5 text-sm">
             {branches.map((b) => (
               <li key={b.id}>
-                <Link href={`/locations#${b.slug}`}>
+                <Link href={`/locations#${b.slug}`} className="font-semibold text-white hover:text-rk-amber">
                   {b.name}
-                  {b.phone ? ` — ${b.phone}` : ""}
                 </Link>
+                <span className="block text-xs text-[#9FA1D4]">{b.address}</span>
+                {b.phone && <span className="block text-xs">{b.phone}</span>}
               </li>
             ))}
           </ul>
@@ -99,7 +89,9 @@ function FooterColumn({
       <ul className="grid gap-1.5 text-sm">
         {links.map((l) => (
           <li key={l.href}>
-            <Link href={l.href}>{l.label}</Link>
+            <Link href={l.href} className="hover:text-rk-amber">
+              {l.label}
+            </Link>
           </li>
         ))}
       </ul>

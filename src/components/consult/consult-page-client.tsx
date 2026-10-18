@@ -8,7 +8,7 @@ import { ChatWidget } from "@/components/consult/chat-widget";
 export function ConsultPageClient({
   product,
 }: {
-  product: { id: string; name: string; class: string } | null;
+  product: { id: string; name: string; class: string; storeName: string } | null;
 }) {
   const [tab, setTab] = useState<"upload" | "chat">("upload");
   const [consultId, setConsultId] = useState<string | null>(null);
@@ -23,7 +23,12 @@ export function ConsultPageClient({
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <h1 className="font-display text-2xl font-bold text-rk-navy">Consult a Pharmacist</h1>
-      {product && <p className="mt-1 text-rk-n600">Regarding: {product.name}</p>}
+      {product && (
+        <p className="mt-1 text-rk-n600">
+          Regarding <b className="text-rk-navy">{product.name}</b> at {product.storeName} — that store&apos;s pharmacist
+          reviews your prescription.
+        </p>
+      )}
 
       <div className="mt-6 flex gap-2 border-b border-rk-n200">
         <button
@@ -46,7 +51,8 @@ export function ConsultPageClient({
             <PrescriptionUploadForm initialProductId={product.id} />
           ) : (
             <p className="text-sm text-rk-n600">
-              Start from a product page so we know which medicine your prescription is for.
+              Open the prescription medicine on your chosen store&apos;s page and tap “Upload prescription”, so we know
+              which medicine — and which store&apos;s pharmacist — it&apos;s for.
             </p>
           )
         ) : consultId ? (

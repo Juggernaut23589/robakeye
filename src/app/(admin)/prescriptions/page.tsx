@@ -23,7 +23,10 @@ export default async function PrescriptionQueuePage() {
               className="rounded-rk-md border border-rk-n200 p-4 hover:bg-rk-n50"
             >
               <div className="flex items-center justify-between">
-                <b className="text-rk-navy">{p.user.name}</b>
+                <span>
+                  <b className="text-rk-navy">{p.user.name}</b>
+                  <span className="ml-2 rounded-rk-pill bg-rk-navy-tint px-2 py-0.5 text-xs text-rk-navy">{p.branch.name}</span>
+                </span>
                 <span className="text-xs text-rk-n600">
                   {new Date(p.createdAt).toLocaleString()}
                 </span>

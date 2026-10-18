@@ -1,8 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import { getStores } from "@/lib/stores";
 import { CartPageClient } from "@/components/cart/cart-page-client";
 
+export const metadata = { title: "Your basket" };
+
 export default async function CartPage() {
-  const branches = await prisma.branch.findMany({ select: { id: true, name: true } });
-  const branchNameById = Object.fromEntries(branches.map((b) => [b.id, b.name]));
-  return <CartPageClient branchNameById={branchNameById} />;
+  const stores = await getStores();
+  return <CartPageClient stores={stores.map((s) => ({ slug: s.slug, name: s.name }))} />;
 }

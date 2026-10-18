@@ -108,3 +108,23 @@
 body {
   font-family: var(--font-body);
 }
+
+/* Landing hero: slow zoom on the active slide + slide progress bar. Both
+   are skipped entirely under prefers-reduced-motion (the hero doesn't
+   apply the classes). */
+@keyframes rk-kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+@keyframes rk-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}

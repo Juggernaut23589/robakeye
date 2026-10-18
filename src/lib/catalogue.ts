@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, Vertical } from "@prisma/client";
 
+// Every query here takes a branchId: a store only ever shows its own
+// listings (Product.branchId), so there's no way to render another store's
+// stock or price by accident.
+
 export type SortKey = "newest" | "price_asc" | "price_desc" | "name";
 const PAGE_SIZE = 12;
 
@@ -9,63 +13,66 @@ export type ListingFilters = {
   minPrice?: number; // naira, converted to kobo internally
   maxPrice?: number;
   inStockOnly?: boolean;
-  branchId?: string; // required for inStockOnly to mean anything specific
   sort?: SortKey;
   page?: number;
   q?: string;
 };
 
-function sortToOrderBy(sort: SortKey | undefined): Prisma.ProductOrderByWithRelationInput {
+export const cardSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  priceKobo: true,
+  images: true,
+  class: true,
+  vertical: true,
+  stockQuantity: true,
+} as const satisfies Prisma.ProductSelect;
+
+function sortToOrderBy(sort: SortKey | undefined): Prisma.ProductOrderByWithRelationInput[] {
   switch (sort) {
     case "price_asc":
-      return { priceKobo: "asc" };
+      return [{ priceKobo: "asc" }];
     case "price_desc":
-      return { priceKobo: "desc" };
+      return [{ priceKobo: "desc" }];
     case "name":
-      return { name: "asc" };
+      return [{ name: "asc" }];
     case "newest":
     default:
-      return { createdAt: "desc" };
+      return [{ createdAt: "desc" }, { name: "asc" }];
   }
 }
 
-export async function listProducts(vertical: Vertical, filters: ListingFilters) {
+// Controlled products never appear in a browsable/purchasable listing —
+// docs/pharmacy-vet-compliance.html's core rule, enforced here by omission
+// so no UI layer has to remember to hide them. (Their detail page still
+// renders, informational only.)
+function browsable(branchId: string): Prisma.ProductWhereInput {
+  return { branchId, isActive: true, class: { not: "CONTROLLED" } };
+}
+
+export async function listProducts(branchId: string, vertical: Vertical | null, filters: ListingFilters) {
   const page = Math.max(1, filters.page ?? 1);
 
-  const where: Prisma.ProductWhereInput = {
-    vertical,
-    isActive: true,
-    // Controlled products never appear in a browsable/purchasable listing
-    // anywhere — docs/pharmacy-vet-compliance.html's core rule, enforced
-    // here by omission so no UI layer has to remember to hide them.
-    class: { not: "CONTROLLED" },
-  };
+  const where: Prisma.ProductWhereInput = { ...browsable(branchId) };
+  if (vertical) where.vertical = vertical;
   if (filters.category) where.category = { slug: filters.category };
-  if (filters.q) where.name = { contains: filters.q, mode: "insensitive" };
+  if (filters.q) {
+    where.OR = [
+      { name: { contains: filters.q, mode: "insensitive" } },
+      { description: { contains: filters.q, mode: "insensitive" } },
+      { category: { name: { contains: filters.q, mode: "insensitive" } } },
+    ];
+  }
   if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
     where.priceKobo = {
       ...(filters.minPrice !== undefined ? { gte: Math.round(filters.minPrice * 100) } : {}),
       ...(filters.maxPrice !== undefined ? { lte: Math.round(filters.maxPrice * 100) } : {}),
     };
   }
-  // Per-location catalogue: once a branch is selected, a product only
-  // belongs in its listing at all if that branch actually carries it (a
-  // BranchInventory row exists) — a branch that's never stocked a product
-  // (e.g. veterinary items at a non-vet branch) simply doesn't show it,
-  // same as the product never existed for that location. Within that,
-  // inStockOnly additionally requires quantity > 0; without it, a carried
-  // but currently-empty item still appears, flagged "Out of stock" by
-  // ProductCard — never hidden outright just for being at zero.
-  if (filters.branchId) {
-    where.inventory = {
-      some: {
-        branchId: filters.branchId,
-        ...(filters.inStockOnly ? { quantity: { gt: 0 } } : {}),
-      },
-    };
-  } else if (filters.inStockOnly) {
-    where.inventory = { some: { quantity: { gt: 0 } } };
-  }
+  // Out-of-stock listings still show (flagged "Out of stock" with a notify
+  // option) unless the shopper asks to hide them.
+  if (filters.inStockOnly) where.stockQuantity = { gt: 0 };
 
   const [items, total] = await Promise.all([
     prisma.product.findMany({
@@ -73,16 +80,7 @@ export async function listProducts(vertical: Vertical, filters: ListingFilters) 
       orderBy: sortToOrderBy(filters.sort),
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        priceKobo: true,
-        images: true,
-        class: true,
-        vertical: true,
-        inventory: { select: { quantity: true }, where: filters.branchId ? { branchId: filters.branchId } : undefined },
-      },
+      select: cardSelect,
     }),
     prisma.product.count({ where }),
   ]);
@@ -96,17 +94,19 @@ export async function listProducts(vertical: Vertical, filters: ListingFilters) 
   };
 }
 
-export async function getCategoriesForVertical(vertical: Vertical) {
+// Only categories this store actually has listings in — an empty
+// "Antimalarials" filter at a store that doesn't stock any is just noise.
+export async function getStoreCategories(branchId: string, vertical: Vertical) {
   return prisma.category.findMany({
-    where: { vertical },
+    where: { vertical, products: { some: browsable(branchId) } },
     select: { id: true, slug: true, name: true },
     orderBy: { name: "asc" },
   });
 }
 
-export async function getProductBySlug(slug: string) {
+export async function getStoreProduct(branchId: string, slug: string) {
   return prisma.product.findUnique({
-    where: { slug },
+    where: { branchId_slug: { branchId, slug } },
     include: {
       category: { select: { slug: true, name: true } },
       reviews: {
@@ -118,18 +118,44 @@ export async function getProductBySlug(slug: string) {
   });
 }
 
-export async function getRelatedProducts(categoryId: string, excludeId: string, branchId?: string) {
+export async function getRelatedProducts(branchId: string, categoryId: string, excludeId: string) {
   return prisma.product.findMany({
-    where: {
-      categoryId,
-      id: { not: excludeId },
-      isActive: true,
-      class: { not: "CONTROLLED" },
-      // Same per-location scoping as listProducts — don't cross-sell a
-      // product this branch doesn't even carry.
-      ...(branchId ? { inventory: { some: { branchId } } } : {}),
-    },
-    select: { id: true, slug: true, name: true, priceKobo: true, images: true, vertical: true },
+    where: { ...browsable(branchId), categoryId, id: { not: excludeId } },
+    select: cardSelect,
+    orderBy: [{ stockQuantity: "desc" }],
     take: 4,
   });
+}
+
+// Store home: a short, in-stock-first shelf per department the store runs.
+export async function getDepartmentShelves(branchId: string, verticals: Vertical[], perShelf = 8) {
+  const shelves = await Promise.all(
+    verticals.map(async (vertical) => {
+      const [items, total] = await Promise.all([
+        prisma.product.findMany({
+          where: { ...browsable(branchId), vertical },
+          select: cardSelect,
+          orderBy: [{ stockQuantity: "desc" }, { name: "asc" }],
+          take: perShelf,
+        }),
+        prisma.product.count({ where: { ...browsable(branchId), vertical } }),
+      ]);
+      return { vertical, items, total };
+    }),
+  );
+  return shelves.filter((s) => s.total > 0);
+}
+
+export async function getFeaturedCombo(branchId: string) {
+  const now = new Date();
+  const deal = await prisma.comboDeal.findFirst({
+    where: { branchId, isActive: true, isFeatured: true, startsAt: { lte: now }, endsAt: { gte: now } },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (!deal) return null;
+  const products = await prisma.product.findMany({
+    where: { id: { in: deal.productIds }, branchId, isActive: true },
+    select: cardSelect,
+  });
+  return { deal, products };
 }

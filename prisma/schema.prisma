@@ -190,13 +190,26 @@ model Branch {
 
   services BranchService[]
 
-  inventory            BranchInventory[]
-  orders               Order[]
-  vetAppointments      VetAppointment[]
-  staff                StaffBranch[]
-  deliveryZones        DeliveryZone[]
-  restockSubscriptions RestockSubscription[]
-  alerts               AdminAlert[]
+  // Storefront presentation — the landing page's location cards and the
+  // store header both read these, so a new branch needs no code change.
+  tagline    String?
+  coverImage String?
+
+  // Each branch is a separate store: it owns its catalogue outright
+  // (Product.branchId), rather than sharing one global catalogue with
+  // per-branch stock rows. A product row can never belong to two stores,
+  // so a cart line, order, prescription or combo deal can't silently mix
+  // stores.
+  products         Product[]
+  orders           Order[]
+  vetAppointments  VetAppointment[]
+  staff            StaffBranch[]
+  deliveryZones    DeliveryZone[]
+  deliveryPartners DeliveryPartner[]
+  alerts           AdminAlert[]
+  prescriptions    Prescription[]
+  comboDeals       ComboDeal[]
+  promotions       Promotion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -232,10 +245,16 @@ model Category {
   products Product[]
 }
 
+// One store's listing of one item. The same real-world item sold at two
+// stores is two rows — each with its own price, stock and expiry — because
+// the business runs each location as its own shop with its own catalogue.
+// slug/sku are unique per store, not globally.
 model Product {
   id          String       @id @default(cuid())
-  sku         String       @unique
-  slug        String       @unique
+  branchId    String
+  branch      Branch       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  sku         String
+  slug        String
   name        String
   description String?      @db.Text
   vertical    Vertical
@@ -243,11 +262,17 @@ model Product {
   categoryId  String
   category    Category     @relation(fields: [categoryId], references: [id])
   priceKobo   Int // store in kobo (integer) — never float currency
-  images      String[] // Cloudinary public IDs
+  images      String[] // image URLs (Cloudinary or /demo-assets)
   isActive    Boolean      @default(true)
 
-  inventory            BranchInventory[]
+  // Stock lives on the listing itself: there's no separate per-branch
+  // inventory table left to drift out of sync with the catalogue.
+  stockQuantity Int       @default(0)
+  lowStockAt    Int       @default(5)
+  expiryDate    DateTime? // perishables — drives the 90/60/30-day Inngest alert
+
   orderItems           OrderItem[]
+  cartItems            CartItem[]
   reviews              Review[]
   prescriptionLines    PrescriptionLine[]
   restockSubscriptions RestockSubscription[]
@@ -257,42 +282,24 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([vertical, class])
-}
-
-model BranchInventory {
-  id         String    @id @default(cuid())
-  branchId   String
-  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity   Int       @default(0)
-  lowStockAt Int       @default(5)
-  expiryDate DateTime? // pharmacy/supermarket perishables — drives the 90/60/30-day Inngest alert
-
-  updatedAt DateTime @updatedAt
-
-  @@unique([branchId, productId])
+  @@unique([branchId, slug])
+  @@unique([branchId, sku])
+  @@index([branchId, vertical, isActive])
   @@index([expiryDate])
 }
 
-// Per docs/information-architecture.html §02 "Fully unavailable" state: a
-// per-product, per-branch waitlist. The actual notify-on-restock trigger
-// fires from inventory write paths built in Milestone 10's admin — this
-// model exists now because the capture UI is part of this milestone's
-// location-aware product page, but the row stays dormant (notifiedAt null)
-// until that trigger exists.
+// "Notify me when it's back" for an out-of-stock listing. The product
+// already identifies the store, so there's no separate branch column to
+// disagree with it.
 model RestockSubscription {
   id         String    @id @default(cuid())
   productId  String
   product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  branchId   String
-  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
   email      String
   notifiedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  @@unique([productId, branchId, email])
+  @@unique([productId, email])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -317,6 +324,10 @@ model Prescription {
   id            String             @id @default(cuid())
   userId        String
   user          User               @relation(fields: [userId], references: [id])
+  // The store whose pharmacist reviews it and whose stock it unlocks —
+  // every line's product must belong to this same store.
+  branchId      String
+  branch        Branch             @relation(fields: [branchId], references: [id])
   imagePublicId String // Cloudinary, delivery type = "private"
   status        PrescriptionStatus @default(PENDING)
   pharmacistId  String? // Staff.id of reviewer
@@ -510,15 +521,18 @@ model Cart {
   updatedAt DateTime @updatedAt
 }
 
+// The product row already identifies its store, so a cart line can't
+// disagree with it. A customer can hold baskets at several stores at once;
+// each basket checks out (and is delivered) separately.
 model CartItem {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   cartId    String
-  cart      Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity  Int
-  branchId  String // the branch this line will fulfil from
 
-  @@unique([cartId, productId, branchId])
+  @@unique([cartId, productId])
 }
 
 model Address {
@@ -646,6 +660,10 @@ model Promotion {
   // the Promotions admin list can keep its "create" list clean of these.
   generatedForUserId String?
 
+  // null = valid at every store; set = only valid at that store's checkout.
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
 
   orders Order[]
@@ -667,6 +685,10 @@ enum ComboDiscountType {
 model ComboDeal {
   id           String            @id @default(cuid())
   name         String
+  // A deal belongs to one store, and every product in productIds must be
+  // that store's own listing — validated on create.
+  branchId     String
+  branch       Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
   productIds   String[] // one of each required in the cart to trigger the bundle
   discountType ComboDiscountType
   valueKobo    Int? // for FIXED_PRICE
@@ -675,12 +697,10 @@ model ComboDeal {
   endsAt       DateTime
   isActive     Boolean           @default(true)
 
-  // Homepage banner scheduling (admin-dashboard-rbac.html §06) — a
-  // superadmin/branch manager flips this on one active deal at a time to
-  // drive the live countdown banner; headline is the only copy field the
-  // banner needs beyond what's already here.
-  isFeaturedOnHomepage Boolean @default(false)
-  bannerHeadline       String?
+  // Banner scheduling (admin-dashboard-rbac.html §06): one active deal per
+  // store at a time drives the countdown banner on that store's page.
+  isFeatured     Boolean @default(false)
+  bannerHeadline String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -735,7 +755,13 @@ model DeliveryZone {
 model DeliveryPartner {
   id       String  @id @default(cuid())
   name     String // "In-house rider" | "Gokada" | etc — see DeliveryProvider abstraction
+  phone    String?
   isActive Boolean @default(true)
+
+  // Set = an in-house rider attached to that store, assignable only to that
+  // store's orders. null = a third-party courier any store can dispatch.
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   orders Order[]
 }

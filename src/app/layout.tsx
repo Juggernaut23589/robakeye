@@ -46,7 +46,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${sora.variable} ${workSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-rk-bg text-rk-ink font-body">
+      {/* Browser extensions (e.g. ClickUp, Grammarly) inject attributes on <body>; that alone shouldn't raise a hydration error. */}
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-rk-bg text-rk-ink font-body">
         <Providers>{children}</Providers>
       </body>
     </html>
