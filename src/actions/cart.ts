@@ -5,11 +5,50 @@ import { prisma } from "@/lib/prisma";
 import type { CartItem } from "@/store/cart";
 
 // Per the brief: "Zustand cart store (persisted locally, synced to DB for
-// logged-in users)". Zustand+localStorage (store/cart.ts) remains the
-// source of truth for rendering — snappy, works offline/guest. These two
-// actions are the sync half: called once on login to merge, then on every
-// mutation while authenticated to mirror local state to the DB Cart row
-// (see components/layout/cart-sync.tsx for the client-side wiring).
+// logged-in users)". Zustand+localStorage (store/cart.ts) stays the source
+// of truth for rendering; these actions are the sync half (wired up in
+// components/layout/cart-sync.tsx), plus a live status check the cart page
+// uses to catch price/stock changes since an item was added.
+
+const lineSelect = {
+  id: true,
+  slug: true,
+  name: true,
+  priceKobo: true,
+  images: true,
+  vertical: true,
+  branchId: true,
+  isActive: true,
+  stockQuantity: true,
+  class: true,
+  branch: { select: { slug: true, name: true } },
+} as const;
+
+type Line = {
+  id: string;
+  slug: string;
+  name: string;
+  priceKobo: number;
+  images: string[];
+  vertical: CartItem["vertical"];
+  branchId: string;
+  branch: { slug: string; name: string };
+};
+
+function toCartItem(p: Line, quantity: number): CartItem {
+  return {
+    productId: p.id,
+    branchId: p.branchId,
+    storeSlug: p.branch.slug,
+    storeName: p.branch.name,
+    slug: p.slug,
+    vertical: p.vertical,
+    name: p.name,
+    priceKobo: p.priceKobo,
+    image: p.images[0] ?? null,
+    quantity,
+  };
+}
 
 export async function getServerCart(): Promise<CartItem[]> {
   const session = await auth();
@@ -17,64 +56,64 @@ export async function getServerCart(): Promise<CartItem[]> {
 
   const cart = await prisma.cart.findUnique({
     where: { userId: session.user.id },
-    include: { items: true },
+    include: { items: { include: { product: { select: lineSelect } } } },
   });
-  if (!cart || cart.items.length === 0) return [];
-
-  // CartItem has no Prisma relation to Product (just a bare productId), so
-  // this is a manual join rather than an `include`.
-  const products = await prisma.product.findMany({
-    where: { id: { in: cart.items.map((i) => i.productId) } },
-    select: { id: true, name: true, priceKobo: true, images: true },
-  });
-  const productById = new Map(products.map((p) => [p.id, p]));
-
-  return cart.items.flatMap((i) => {
-    const product = productById.get(i.productId);
-    if (!product) return [];
-    return [
-      {
-        productId: i.productId,
-        branchId: i.branchId,
-        name: product.name,
-        priceKobo: product.priceKobo,
-        image: product.images[0] ?? null,
-        quantity: i.quantity,
-      },
-    ];
-  });
+  if (!cart) return [];
+  return cart.items.filter((i) => i.product.isActive).map((i) => toCartItem(i.product, i.quantity));
 }
 
-export async function syncServerCart(items: CartItem[]): Promise<{ ok: boolean }> {
+export async function syncServerCart(items: { productId: string; quantity: number }[]): Promise<{ ok: boolean }> {
   const session = await auth();
   if (!session?.user) return { ok: false };
 
   // A non-empty sync means the cart is active again — reset the
-  // abandoned-cart reminder stage and activity clock so a later
-  // abandonment restarts the 1h/24h/72h sequence instead of resuming
-  // mid-way through a stale one.
+  // abandoned-cart reminder stage and activity clock.
   const cart = await prisma.cart.upsert({
     where: { userId: session.user.id },
     update: items.length > 0 ? { abandonedStage: 0, lastActivityAt: new Date() } : {},
     create: { userId: session.user.id },
   });
 
-  // Replace-in-place: delete lines no longer present, upsert the rest.
-  // Cart sizes here are small (a handful of line items), so a full
-  // replace per sync is simpler and plenty fast — no need for a diff.
+  // Ignore ids that no longer exist (deleted listing) rather than failing
+  // the whole sync on the foreign key.
+  const existing = await prisma.product.findMany({
+    where: { id: { in: items.map((i) => i.productId) } },
+    select: { id: true },
+  });
+  const valid = new Set(existing.map((p) => p.id));
+
   await prisma.$transaction([
     prisma.cartItem.deleteMany({ where: { cartId: cart.id } }),
-    ...items.map((item) =>
-      prisma.cartItem.create({
-        data: {
-          cartId: cart.id,
-          productId: item.productId,
-          branchId: item.branchId,
-          quantity: item.quantity,
-        },
-      }),
-    ),
+    prisma.cartItem.createMany({
+      data: items
+        .filter((i) => valid.has(i.productId))
+        .map((i) => ({ cartId: cart.id, productId: i.productId, quantity: Math.max(1, Math.min(99, i.quantity)) })),
+      skipDuplicates: true,
+    }),
   ]);
 
   return { ok: true };
+}
+
+export type CartLineStatus = {
+  productId: string;
+  exists: boolean;
+  isActive: boolean;
+  priceKobo: number;
+  stockQuantity: number;
+  class: "OTC" | "POM" | "CONTROLLED";
+};
+
+// Live price/stock for the lines in the cart — prices and stock are per
+// store and can change after an item was added.
+export async function getCartLineStatus(productIds: string[]): Promise<CartLineStatus[]> {
+  const ids = productIds.slice(0, 200);
+  const products = await prisma.product.findMany({ where: { id: { in: ids } }, select: lineSelect });
+  const byId = new Map(products.map((p) => [p.id, p]));
+  return ids.map((id) => {
+    const p = byId.get(id);
+    return p
+      ? { productId: id, exists: true, isActive: p.isActive, priceKobo: p.priceKobo, stockQuantity: p.stockQuantity, class: p.class }
+      : { productId: id, exists: false, isActive: false, priceKobo: 0, stockQuantity: 0, class: "OTC" };
+  });
 }

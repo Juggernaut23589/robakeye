@@ -63,7 +63,8 @@ export default async function OrderConfirmationPage({
                 <Badge variant={STATUS_VARIANT[order.status]}>{order.status.replace("_", " ")}</Badge>
               </div>
               <p className="mt-1 text-sm text-rk-n600">
-                {order.branch.name} — {order.deliveryMethod === "PICKUP" ? "Pickup in-branch" : "Delivery"}
+                {order.branch.name} —{" "}
+                {order.deliveryMethod === "PICKUP" ? `Pickup at ${order.branch.address}` : "Delivery from this store"}
               </p>
               <ul className="mt-2 grid gap-1 text-sm text-rk-ink">
                 {order.items.map((i) => (

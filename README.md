@@ -105,9 +105,22 @@ npm install
 cp .env.example .env   # fill in real values from step 1
 npm run db:generate
 npm run db:migrate     # creates tables in Supabase via DIRECT_URL
-npm run db:seed        # seeds 3 branches, categories, 8 roles, superadmin
+npm run db:seed        # seeds 3 stores, their own catalogues, roles, superadmin
 npm run dev
 ```
+
+### Tests
+
+```bash
+npm run test:unit      # Vitest — pricing, delivery radius, cart, URL helpers
+# E2E (Playwright, installed Chrome) against a LOCAL database only:
+DATABASE_URL=$LOCAL_DB DIRECT_URL=$LOCAL_DB npm run dev     # terminal 1
+E2E_DATABASE_URL=$LOCAL_DB npm run test:e2e                 # terminal 2
+```
+
+The E2E global setup creates local-only test accounts (`*@robakeye.test`,
+see `tests/e2e/fixtures.ts`) and refuses to run against a non-localhost
+database.
 
 In a second terminal, run the local Inngest dev server (discovers the app
 automatically once `INNGEST_DEV=1` is set in `.env`):
@@ -382,3 +395,45 @@ prisma/
       manually invoked the abandoned-cart cron from the Inngest dev UI
       (completed cleanly, 0 reminders sent — correctly below every
       threshold for a cart created minutes earlier).
+
+## Store-owned catalogues (2026-10-18)
+
+Each branch is now a separate store with its own catalogue, prices and
+stock — a product row (`Product.branchId`) belongs to exactly one store, so
+nothing can mix stores by accident.
+
+- **Landing page** (`/`): navbar, one full-height banner with three slides
+  (supermart, pharmacy, vet clinic) and the caption "Where would you like
+  to shop today?" over the three location cards, then the footer. Optional
+  "find the store nearest to me" uses the browser's location (never sent
+  to the server).
+- **Stores** live at `/store/<slug>` (home), `/store/<slug>/<department>`,
+  `/store/<slug>/<department>/<product>` and `/store/<slug>/search`. A
+  store only shows departments it runs (no vet clinic at Ajadi/Ojoo).
+  Old `/pharmacy`, `/supermarket`, `/veterinary` links redirect into the
+  last-visited store.
+- **Schema** (`prisma/migrations/20261018143000_store_owned_catalogue`):
+  `BranchInventory` folded into per-store `Product` rows (stock, low-stock
+  level, expiry on the listing); slug/SKU unique per store; prescriptions,
+  combo deals, store-specific promo codes and in-house riders all carry
+  their store. The migration is data-preserving (every old inventory row
+  became that store's listing; cart lines, order lines, restock and admin
+  alerts were repointed to the right store's listing).
+- **Basket & checkout**: one cart, split into a basket per store; each
+  basket is checked out on its own (`/checkout?store=<slug>`) and becomes
+  one order fulfilled entirely by that store. The server rejects lines from
+  another store, controlled medicines, quantities above that store's stock
+  and prescription-only medicines without an approved prescription.
+- **Delivery**: each store delivers only within its own radius (largest
+  `DeliveryZone.maxKm`); addresses beyond it are refused with a pickup
+  option, addresses without coordinates pay the zone's base fee, fees are
+  rounded up to the next ₦50. Addresses can be pinned with the browser's
+  location. In-house riders belong to one store and can only be assigned
+  that store's orders; shared couriers serve any store; an order can't go
+  "out for delivery" without a rider; pickup orders skip the rider leg.
+- **Staff**: branch-scoped roles (`branchScope = OWN`) only see and edit
+  their own stores' products, stock, orders, prescriptions, deliveries,
+  bundles and promo codes (`lib/staff-scope.ts`). Raising a listing's
+  stock from zero emails that store's restock subscribers (Inngest
+  `product/restocked`).
+

@@ -12,8 +12,16 @@ function inDaysIso(days: number) {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-export function NewPromoForm() {
+export function NewPromoForm({
+  branches,
+  canTargetAllStores,
+}: {
+  branches: { id: string; name: string }[];
+  canTargetAllStores: boolean;
+}) {
   const router = useRouter();
+  // "" = valid at every store (only for org-wide staff).
+  const [branchId, setBranchId] = useState(canTargetAllStores ? "" : (branches[0]?.id ?? ""));
   const [code, setCode] = useState("");
   const [type, setType] = useState<"PERCENTAGE" | "FIXED_AMOUNT">("PERCENTAGE");
   const [percentOff, setPercentOff] = useState(10);
@@ -38,6 +46,7 @@ export function NewPromoForm() {
       usageLimit: usageLimit ? Number(usageLimit) : undefined,
       startsAt: new Date(startsAt).toISOString(),
       endsAt: new Date(endsAt).toISOString(),
+      branchId: branchId || undefined,
     });
     setPending(false);
     if (!result.ok) {
@@ -50,6 +59,21 @@ export function NewPromoForm() {
 
   return (
     <form onSubmit={onSubmit} className="grid gap-3 rounded-rk-md border border-rk-n200 bg-white p-5">
+      <label className="text-xs text-rk-n600">
+        Valid at
+        <select
+          value={branchId}
+          onChange={(e) => setBranchId(e.target.value)}
+          className="mt-0.5 block w-full max-w-sm rounded-rk-sm border border-rk-n200 px-2 py-1.5"
+        >
+          {canTargetAllStores && <option value="">Every store</option>}
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name} only
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="grid gap-3 sm:grid-cols-4">
         <label className="text-xs text-rk-n600">
           Code

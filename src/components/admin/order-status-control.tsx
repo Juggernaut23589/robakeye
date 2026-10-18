@@ -15,12 +15,24 @@ const NEXT_STATUS: Record<string, string[]> = {
   REFUNDED: [],
 };
 
-export function OrderStatusControl({ orderId, currentStatus }: { orderId: string; currentStatus: string }) {
+export function OrderStatusControl({
+  orderId,
+  currentStatus,
+  deliveryMethod = "DELIVERY",
+}: {
+  orderId: string;
+  currentStatus: string;
+  deliveryMethod?: "DELIVERY" | "PICKUP";
+}) {
   const router = useRouter();
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const options = NEXT_STATUS[currentStatus] ?? [];
+  // Pickup orders go straight from "processing" to collected.
+  const options =
+    deliveryMethod === "PICKUP" && currentStatus === "PROCESSING"
+      ? ["DELIVERED", "CANCELLED"]
+      : (NEXT_STATUS[currentStatus] ?? []);
 
   async function onUpdate(status: string) {
     setPending(true);

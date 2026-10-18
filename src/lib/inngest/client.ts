@@ -49,6 +49,12 @@ export const prescriptionReviewed = eventType("prescription/reviewed", {
   }>(),
 });
 
+// A store's listing went from 0 to >0 units — notifies that listing's
+// "email me when it's back" subscribers.
+export const productRestocked = eventType("product/restocked", {
+  schema: staticSchema<{ productId: string }>(),
+});
+
 export const appointmentBooked = eventType("appointment/booked", {
   schema: staticSchema<{ appointmentId: string }>(),
 });

@@ -30,6 +30,14 @@ export const metadata: Metadata = {
   },
   description:
     "Robakeye is a multi-vertical pharmacy, veterinary clinic and supermarket serving Ibadan across three branches: Ajadi, Ojoo and the Sheu flagship with full vet services.",
+  icons: {
+    icon: [
+      { url: "/brand/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/brand/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/brand/apple-touch-icon-180.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -38,7 +46,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${sora.variable} ${workSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-rk-bg text-rk-ink font-body">
+      {/* Browser extensions (e.g. ClickUp, Grammarly) inject attributes on <body>; that alone shouldn't raise a hydration error. */}
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-rk-bg text-rk-ink font-body">
         <Providers>{children}</Providers>
       </body>
     </html>

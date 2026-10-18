@@ -3,9 +3,9 @@ import { cron } from "inngest";
 import { prisma } from "@/lib/prisma";
 import { getResend, FROM_EMAIL } from "@/lib/resend";
 
-// Daily CRON — scans every branch's inventory for items whose expiryDate
+// Daily CRON — scans every store's listings for items whose expiryDate
 // crosses the 90/60/30-day thresholds, raises one AdminAlert per
-// (threshold, inventory row) — deduped so the same item at the same
+// (threshold, store listing) — deduped so the same item at the same
 // threshold is never alerted twice — and emails the branch's own
 // Branch Manager(s) plus every org-wide Inventory Manager.
 const THRESHOLDS = [
@@ -26,13 +26,20 @@ export const productExpiryAlert = inngest.createFunction(
       const windowFloor = new Date(windowStart.getTime() + threshold.days * 24 * 60 * 60 * 1000);
 
       const expiring = await step.run(`find-expiring-${threshold.type}`, async () => {
-        return prisma.branchInventory.findMany({
-          where: { expiryDate: { gte: windowFloor, lt: windowEnd } },
-          include: {
-            product: { select: { id: true, name: true } },
-            branch: { select: { id: true, name: true } },
-          },
+        // Each listing is one store's own stock, so the listing row *is*
+        // the (product, branch) pair being alerted on.
+        const rows = await prisma.product.findMany({
+          where: { isActive: true, expiryDate: { gte: windowFloor, lt: windowEnd } },
+          select: { id: true, name: true, branchId: true, expiryDate: true, branch: { select: { id: true, name: true } } },
         });
+        return rows.map((r) => ({
+          id: r.id,
+          productId: r.id,
+          branchId: r.branchId,
+          expiryDate: r.expiryDate,
+          product: { id: r.id, name: r.name },
+          branch: r.branch,
+        }));
       });
 
       for (const item of expiring) {
@@ -79,7 +86,7 @@ export const productExpiryAlert = inngest.createFunction(
 
             return { alerted: true };
           })
-          .catch((err) => console.error(`[expiry-alert] failed for inventory ${item.id}`, err));
+          .catch((err) => console.error(`[expiry-alert] failed for listing ${item.id}`, err));
         alertsRaised++;
       }
     }

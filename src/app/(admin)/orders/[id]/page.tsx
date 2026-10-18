@@ -126,6 +126,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <h2 className="mb-3 font-semibold text-rk-navy">Fulfilment</h2>
             <p className="text-sm text-rk-navy">{order.branch.name}</p>
             <p className="text-sm text-rk-n600">{order.deliveryMethod === "DELIVERY" ? order.address?.line1 ?? "No address on file" : "Pickup at branch"}</p>
+            {order.deliveryMethod === "DELIVERY" && (
+              <p className="text-xs text-rk-n600">
+                Rider: {order.deliveryPartner ? order.deliveryPartner.name : "not assigned yet"}
+              </p>
+            )}
             {order.prescription && (
               <p className="mt-2 text-xs text-rk-n600">
                 Prescription status: <Badge variant="amber">{order.prescription.status}</Badge>
@@ -136,7 +141,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {canUpdateStatus && (
             <section className="rounded-rk-md border border-rk-n200 bg-white p-5">
               <h2 className="mb-3 font-semibold text-rk-navy">Update status</h2>
-              <OrderStatusControl orderId={order.id} currentStatus={order.status} />
+              <OrderStatusControl orderId={order.id} currentStatus={order.status} deliveryMethod={order.deliveryMethod} />
             </section>
           )}
 

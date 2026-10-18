@@ -2,19 +2,25 @@
 
 import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useCartStore, type CartItem } from "@/store/cart";
+import { useCartStore, MAX_LINE_QUANTITY, type CartItem } from "@/store/cart";
 import { getServerCart, syncServerCart } from "@/actions/cart";
 
+// Lines are store listings, so productId alone identifies one. Server
+// copy wins on details (fresh price/name), quantities add up.
 function mergeCartItems(local: CartItem[], server: CartItem[]): CartItem[] {
   const merged = new Map<string, CartItem>();
-  for (const item of server) merged.set(`${item.productId}:${item.branchId}`, item);
+  for (const item of server) merged.set(item.productId, item);
   for (const item of local) {
-    const key = `${item.productId}:${item.branchId}`;
-    const existing = merged.get(key);
-    merged.set(key, existing ? { ...existing, quantity: existing.quantity + item.quantity } : item);
+    const existing = merged.get(item.productId);
+    merged.set(
+      item.productId,
+      existing ? { ...existing, quantity: Math.min(MAX_LINE_QUANTITY, existing.quantity + item.quantity) } : item,
+    );
   }
   return Array.from(merged.values());
 }
+
+const toSync = (items: CartItem[]) => items.map((i) => ({ productId: i.productId, quantity: i.quantity }));
 
 // sessionStorage, not a plain useRef: a ref resets on every remount, and
 // a full page load (not just a client-side navigation) remounts this
@@ -48,7 +54,7 @@ export function CartSync() {
       const merged = mergeCartItems(localItems, serverItems);
       skipNextSyncRef.current = true; // the setItems below shouldn't itself trigger a redundant sync
       useCartStore.getState().setItems(merged);
-      syncServerCart(merged);
+      syncServerCart(toSync(merged));
       try {
         sessionStorage.setItem(MERGE_FLAG_KEY, "1");
       } catch {
@@ -69,7 +75,7 @@ export function CartSync() {
         return;
       }
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => syncServerCart(state.items), 600);
+      timer = setTimeout(() => syncServerCart(toSync(state.items)), 600);
     });
 
     return () => {

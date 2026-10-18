@@ -18,7 +18,9 @@ export default async function PrescriptionReviewPage({
       <h1 className="font-display text-2xl font-bold text-rk-navy">
         Prescription — {prescription.user.name}
       </h1>
-      <p className="text-sm text-rk-n600">{prescription.user.email}</p>
+      <p className="text-sm text-rk-n600">
+        {prescription.user.email} · for <b className="text-rk-navy">{prescription.branch.name}</b>
+      </p>
 
       <div className="mt-6 grid gap-8 sm:grid-cols-2">
         <div>

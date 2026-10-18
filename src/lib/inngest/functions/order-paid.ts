@@ -37,9 +37,12 @@ export const handleOrderPaid = inngest.createFunction(
       const issues: string[] = [];
       for (const order of orders) {
         for (const item of order.items) {
-          const result = await prisma.branchInventory.updateMany({
-            where: { productId: item.productId, branchId: order.branchId, quantity: { gte: item.quantity } },
-            data: { quantity: { decrement: item.quantity } },
+          // The listing belongs to exactly one store (Product.branchId);
+          // matching it too guards against an order line ever drawing down
+          // another store's shelf.
+          const result = await prisma.product.updateMany({
+            where: { id: item.productId, branchId: order.branchId, stockQuantity: { gte: item.quantity } },
+            data: { stockQuantity: { decrement: item.quantity } },
           });
           if (result.count === 0) {
             issues.push(`${item.product.name} at ${order.branch.name} (order ${order.orderNumber})`);

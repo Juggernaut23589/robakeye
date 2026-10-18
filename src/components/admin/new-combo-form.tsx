@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createComboDeal } from "@/actions/promotions-admin";
+import { createComboDeal, listProductsForPicker } from "@/actions/promotions-admin";
 import { formatNaira } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -12,8 +12,23 @@ function inDaysIso(days: number) {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-export function NewComboForm({ products }: { products: Product[] }) {
+export function NewComboForm({ branches }: { branches: { id: string; name: string }[] }) {
   const router = useRouter();
+  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
+  const [products, setProducts] = useState<Product[]>([]);
+
+  // Bundles combine one store's own listings, so the picker reloads when
+  // the store changes and the selection is cleared.
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    listProductsForPicker(branchId).then((rows) => {
+      if (!cancelled) setProducts(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [branchId]);
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [discountType, setDiscountType] = useState<"FIXED_PRICE" | "PERCENT_OFF">("FIXED_PRICE");
@@ -39,6 +54,7 @@ export function NewComboForm({ products }: { products: Product[] }) {
     setPending(true);
     setError(null);
     const result = await createComboDeal({
+      branchId,
       name,
       productIds: selected,
       discountType,
@@ -46,7 +62,7 @@ export function NewComboForm({ products }: { products: Product[] }) {
       percentOff: discountType === "PERCENT_OFF" ? percentOff : undefined,
       startsAt: new Date(startsAt).toISOString(),
       endsAt: new Date(endsAt).toISOString(),
-      isFeaturedOnHomepage: featured,
+      isFeatured: featured,
       bannerHeadline: headline || undefined,
     });
     setPending(false);
@@ -62,6 +78,23 @@ export function NewComboForm({ products }: { products: Product[] }) {
   return (
     <form onSubmit={onSubmit} className="grid gap-3 rounded-rk-md border border-rk-n200 bg-white p-5">
       <label className="text-xs text-rk-n600">
+        Store
+        <select
+          value={branchId}
+          onChange={(e) => {
+            setBranchId(e.target.value);
+            setSelected([]);
+          }}
+          className="mt-0.5 block w-full rounded-rk-sm border border-rk-n200 px-2 py-1.5"
+        >
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="text-xs text-rk-n600">
         Deal name
         <input
           value={name}
@@ -73,7 +106,7 @@ export function NewComboForm({ products }: { products: Product[] }) {
       </label>
 
       <div>
-        <p className="mb-1 text-xs text-rk-n600">Products in the bundle (pick 2+)</p>
+        <p className="mb-1 text-xs text-rk-n600">Products in the bundle (pick 2+, from this store)</p>
         <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
           {products.map((p) => (
             <button
@@ -154,7 +187,7 @@ export function NewComboForm({ products }: { products: Product[] }) {
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
-        Feature on homepage banner
+        Feature on this store&apos;s home page
       </label>
       {featured && (
         <label className="text-xs text-rk-n600">

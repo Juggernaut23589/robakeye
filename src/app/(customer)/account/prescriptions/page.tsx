@@ -23,7 +23,7 @@ export default async function MyPrescriptionsPage() {
             <div key={p.id} className="rounded-rk-md border border-rk-n200 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-rk-n600">
-                  {new Date(p.createdAt).toLocaleDateString()}
+                  {new Date(p.createdAt).toLocaleDateString()} · {p.branch.name}
                 </span>
                 <Badge variant={STATUS_VARIANT[p.status]}>{p.status.replace("_", " ")}</Badge>
               </div>

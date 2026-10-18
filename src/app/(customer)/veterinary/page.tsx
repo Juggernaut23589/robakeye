@@ -1,16 +1,6 @@
-import { ProductListing, type ListingSearchParams } from "@/components/catalogue/product-listing";
+import { redirectLegacyDepartment } from "@/lib/legacy-redirect";
 
-export default async function VeterinaryPage({
-  searchParams,
-}: {
-  searchParams: Promise<ListingSearchParams>;
-}) {
-  return (
-    <ProductListing
-      vertical="VETERINARY"
-      title="Veterinary"
-      basePath="/veterinary"
-      searchParams={await searchParams}
-    />
-  );
+// Old department URL — see lib/legacy-redirect.ts.
+export default async function LegacyVeterinaryPage(): Promise<never> {
+  return redirectLegacyDepartment("VETERINARY");
 }

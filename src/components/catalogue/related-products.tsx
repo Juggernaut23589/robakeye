@@ -1,33 +1,17 @@
-import Link from "next/link";
-import { formatNaira } from "@/lib/utils";
+import { ProductCard, type CardProduct, type CardStore } from "@/components/catalogue/product-card";
 
-type RelatedProduct = {
-  id: string;
-  slug: string;
-  name: string;
-  priceKobo: number;
-  vertical: string;
-};
-
-export function RelatedProducts({ products }: { products: RelatedProduct[] }) {
+export function RelatedProducts({ products, store }: { products: CardProduct[]; store: CardStore }) {
   if (products.length === 0) return null;
   return (
-    <section className="mt-10">
-      <h2 className="mb-4 font-display text-lg font-bold text-rk-navy">You may also like</h2>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <section className="mt-12">
+      <h2 className="mb-4 font-display text-lg font-bold text-rk-navy">More from this aisle</h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {products.map((p) => (
-          <Link
-            key={p.id}
-            href={`/${p.vertical.toLowerCase()}/${p.slug}`}
-            className="rounded-rk-md border border-rk-n200 p-3"
-          >
-            <div className="truncate text-sm font-medium text-rk-ink">{p.name}</div>
-            <div className="mt-1 font-mono text-sm font-bold text-rk-navy">
-              {formatNaira(p.priceKobo)}
-            </div>
-          </Link>
+          <li key={p.id}>
+            <ProductCard product={p} store={store} />
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

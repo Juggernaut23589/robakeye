@@ -6,9 +6,12 @@ import { createProduct, updateProduct, getImageUploadSignature } from "@/actions
 import { Button } from "@/components/ui/button";
 
 type Category = { id: string; name: string; vertical: string };
+type Branch = { id: string; name: string; services: string[] };
 
 type ProductFormValues = {
   id?: string;
+  branchId: string;
+  stockQuantity: number;
   sku: string;
   slug: string;
   name: string;
@@ -21,20 +24,31 @@ type ProductFormValues = {
   isActive: boolean;
 };
 
-export function ProductForm({ categories, initial }: { categories: Category[]; initial?: Partial<ProductFormValues> }) {
+export function ProductForm({
+  categories,
+  branches,
+  initial,
+}: {
+  categories: Category[];
+  branches: Branch[];
+  initial?: Partial<ProductFormValues>;
+}) {
   const router = useRouter();
   const [values, setValues] = useState<ProductFormValues>({
+    branchId: initial?.branchId ?? branches[0]?.id ?? "",
+    stockQuantity: initial?.stockQuantity ?? 0,
     sku: initial?.sku ?? "",
     slug: initial?.slug ?? "",
     name: initial?.name ?? "",
     description: initial?.description ?? "",
     vertical: initial?.vertical ?? "SUPERMARKET",
     class: initial?.class ?? "OTC",
-    categoryId: initial?.categoryId ?? categories[0]?.id ?? "",
+    categoryId: initial?.categoryId ?? categories.find((c) => c.vertical === (initial?.vertical ?? "SUPERMARKET"))?.id ?? "",
     priceNaira: initial?.priceNaira ?? 0,
     images: initial?.images ?? [],
     isActive: initial?.isActive ?? true,
   });
+  const selectedBranch = branches.find((b) => b.id === values.branchId);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +90,7 @@ export function ProductForm({ categories, initial }: { categories: Category[]; i
     setSaving(true);
     setError(null);
     const payload = {
+      ...(initial?.id ? {} : { branchId: values.branchId, stockQuantity: values.stockQuantity }),
       sku: values.sku,
       slug: values.slug,
       name: values.name,
@@ -93,12 +108,39 @@ export function ProductForm({ categories, initial }: { categories: Category[]; i
       setError(result.error);
       return;
     }
-    router.push("/products");
+    router.push(initial?.id ? "/products" : `/products/${"productId" in result ? result.productId : ""}`);
     router.refresh();
   }
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4 rounded-rk-md border border-rk-n200 bg-white p-5">
+      <label className="grid gap-1 text-sm">
+        Store
+        <select
+          value={values.branchId}
+          disabled={!!initial?.id}
+          onChange={(e) => {
+            const branch = branches.find((b) => b.id === e.target.value);
+            setValues((v) => {
+              const vertical = branch && !branch.services.includes(v.vertical) ? (branch.services[0] as ProductFormValues["vertical"]) : v.vertical;
+              const categoryId = categories.find((c) => c.id === v.categoryId)?.vertical === vertical ? v.categoryId : (categories.find((c) => c.vertical === vertical)?.id ?? "");
+              return { ...v, branchId: e.target.value, vertical, categoryId };
+            });
+          }}
+          className="rounded-rk-sm border border-rk-n200 px-3 py-2 disabled:bg-rk-n50"
+        >
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-rk-n600">
+          {initial?.id
+            ? "A listing always belongs to one store. To sell it elsewhere, use “Also sell at” below."
+            : "The listing belongs to this store only, with its own price and stock."}
+        </span>
+      </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm">
           SKU
@@ -145,12 +187,19 @@ export function ProductForm({ categories, initial }: { categories: Category[]; i
           Vertical
           <select
             value={values.vertical}
-            onChange={(e) => setValues((v) => ({ ...v, vertical: e.target.value as ProductFormValues["vertical"] }))}
+            onChange={(e) => {
+              const vertical = e.target.value as ProductFormValues["vertical"];
+              setValues((v) => ({ ...v, vertical, categoryId: categories.find((c) => c.vertical === vertical)?.id ?? "" }));
+            }}
             className="rounded-rk-sm border border-rk-n200 px-3 py-2"
           >
-            <option value="PHARMACY">Pharmacy</option>
-            <option value="VETERINARY">Veterinary</option>
-            <option value="SUPERMARKET">Supermarket</option>
+            {(["PHARMACY", "VETERINARY", "SUPERMARKET"] as const)
+              .filter((v) => selectedBranch?.services.includes(v) ?? true)
+              .map((v) => (
+                <option key={v} value={v}>
+                  {v === "PHARMACY" ? "Pharmacy" : v === "VETERINARY" ? "Veterinary" : "Supermarket"}
+                </option>
+              ))}
           </select>
         </label>
         <label className="grid gap-1 text-sm">
@@ -172,15 +221,18 @@ export function ProductForm({ categories, initial }: { categories: Category[]; i
             onChange={(e) => setValues((v) => ({ ...v, categoryId: e.target.value }))}
             className="rounded-rk-sm border border-rk-n200 px-3 py-2"
           >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.vertical})
-              </option>
-            ))}
+            {categories
+              .filter((c) => c.vertical === values.vertical)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
           </select>
         </label>
       </div>
 
+      <div className="flex flex-wrap gap-4">
       <label className="grid gap-1 text-sm">
         Price (₦)
         <input
@@ -193,6 +245,19 @@ export function ProductForm({ categories, initial }: { categories: Category[]; i
           className="w-40 rounded-rk-sm border border-rk-n200 px-3 py-2"
         />
       </label>
+      {!initial?.id && (
+        <label className="grid gap-1 text-sm">
+          Opening stock
+          <input
+            type="number"
+            min={0}
+            value={values.stockQuantity}
+            onChange={(e) => setValues((v) => ({ ...v, stockQuantity: Math.max(0, Number(e.target.value)) }))}
+            className="w-32 rounded-rk-sm border border-rk-n200 px-3 py-2"
+          />
+        </label>
+      )}
+      </div>
 
       <div>
         <p className="mb-2 text-sm font-semibold text-rk-navy">Images</p>
